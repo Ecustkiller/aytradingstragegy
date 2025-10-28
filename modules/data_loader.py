@@ -100,8 +100,24 @@ def get_stock_data_ashare(symbol, start, end, period_type):
 def get_stock_data_ak(symbol, start, end, period_type):
     """使用AKShare获取股票数据"""
     try:
-        # 格式化股票代码
-        formatted_symbol = format_stock_code(symbol)
+        # 清理股票代码，移除前缀和后缀
+        # AKShare需要纯数字代码，如 "600519"
+        formatted_symbol = symbol.strip()
+        
+        # 移除 "sh" 或 "sz" 前缀
+        if formatted_symbol.lower().startswith(('sh', 'sz')):
+            formatted_symbol = formatted_symbol[2:]
+        
+        # 移除 ".SH" 或 ".SZ" 后缀
+        if '.' in formatted_symbol:
+            formatted_symbol = formatted_symbol.split('.')[0]
+        
+        # 确保是纯数字
+        formatted_symbol = ''.join(filter(str.isdigit, formatted_symbol))
+        
+        if not formatted_symbol:
+            st.error("❌ 无效的股票代码")
+            return pd.DataFrame()
         
         print(f"🔄 正在使用AKShare获取 {formatted_symbol} 的数据...")
         
