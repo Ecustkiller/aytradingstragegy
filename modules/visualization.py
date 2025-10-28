@@ -80,13 +80,16 @@ def create_plotly_chart(df, period, show_ma=False, show_boll=False, show_vol=Fal
     elif num_rows == 4:
         row_heights = [0.65, 0.12, 0.12, 0.11]
     
-    # 创建子图
+    # 创建子图 - 指定specs以支持Candlestick
+    specs = [[{"secondary_y": False}] for _ in range(num_rows)]
+    
     fig = make_subplots(
         rows=num_rows, 
         cols=1, 
         shared_xaxes=True,
         vertical_spacing=0.01,  # 减少垂直间距
-        row_heights=row_heights
+        row_heights=row_heights,
+        specs=specs
     )
 
     # 准备悬停文本信息
@@ -486,12 +489,17 @@ def create_plotly_chart(df, period, show_ma=False, show_boll=False, show_vol=Fal
         xaxis=dict(
             showticklabels=True,   # 显示X轴标签，方便用户查看日期
             rangeslider=dict(visible=False),  # 禁用范围滑块
-            autorange=True,  # 自动调整范围以显示所有数据
             # 自定义X轴标签显示日期
             tickmode='array',
             tickvals=list(range(0, len(df_continuous), max(1, len(df_continuous)//10))),
             ticktext=[df_continuous.iloc[i]['date_str'] for i in range(0, len(df_continuous), max(1, len(df_continuous)//10))],
-            tickangle=45
+            tickangle=45,
+            type='linear',  # 明确指定为线性轴
+            range=[-0.5, len(df_continuous) - 0.5]  # 设置范围以显示所有数据
+        ),
+        yaxis=dict(
+            autorange=True,  # y轴自动调整
+            fixedrange=False  # 允许y轴缩放
         )
     )
     
