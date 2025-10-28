@@ -19,13 +19,16 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-MANIFEST
 
-# Virtual Environment
-venv/
-ENV/
-env/
-.venv
+# Streamlit
+.streamlit/
+
+# 数据缓存
+data_cache/
+*.pkl
+*.xlsx
+temp_data_*/
+stock_data_*.xlsx
 
 # IDE
 .vscode/
@@ -33,33 +36,11 @@ env/
 *.swp
 *.swo
 *~
+
+# OS
 .DS_Store
+Thumbs.db
 
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# Data
-data/
-quotes/
-*.csv
-*.h5
-*.hdf5
-logs/
+# Logs
 *.log
-
-# Stock Data
-~/stock_data/
-
-# Cache
-.cache/
-*.cache
-
-# Streamlit
-.streamlit/secrets.toml
-.streamlit/config.toml
-
-# Others
-*.pid
-*.bak
-*.tmp
-
+logs/
