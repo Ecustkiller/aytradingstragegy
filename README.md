@@ -4,13 +4,23 @@
 [![Python](https://img.shields.io/badge/python-3.9+-green.svg)](https://www.python.org/)
 [![Streamlit](https://img.shields.io/badge/streamlit-1.28+-red.svg)](https://streamlit.io/)
 
-**量化交易策略回测系统 - Streamlit Web应用**
+**A股量化交易分析系统 + AI策略回测平台 - Streamlit Web应用**
 
-本项目是一个**纯净的Streamlit Web应用**,集成了10种量化策略回测、4种数据源支持、实时信号生成等功能。
+本项目是一个**完整的Streamlit量化交易系统**,集成了aytrading的所有分析功能(单股分析、选股、板块分析等)以及10种AI量化策略回测、4种数据源支持、实时信号生成等功能。
 
 ---
 
 ## ✨ 核心特性
+
+### 📊 原生aytrading功能
+- **单股技术分析** - 多维度技术指标分析(MA/MACD/KDJ/RSI/BOLL等)
+- **增强选股** - 基于聚宽小市值策略的优化版本
+- **涨停概念分析** - A股涨停板统计与概念追踪
+- **指数RPS分析** - 基于相对强度排名的指数分析
+- **市场情绪分析** - 多维度指标的市场情绪监控
+- **ETF动量分析** - 基于三大核心因子的ETF动量评分系统
+- **板块分析** - 行业板块排行榜与成分股查询
+- **突破选股** - 技术突破策略选股
 
 ### 🎯 10种量化策略
 1. **V13动量轮动策略** - 4只ETF | 20日动量评分 | 双阈值超买识别
