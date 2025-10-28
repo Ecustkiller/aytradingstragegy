@@ -116,18 +116,18 @@ def create_plotly_chart(df, period, show_ma=False, show_boll=False, show_vol=Fal
     df_continuous['date_str'] = df.index.strftime('%Y-%m-%d')
     df_continuous['continuous_index'] = range(len(df))
     
-    # 添加K线图 - 使用连续索引
-    candlestick = go.Candlestick(
+    # 添加K线图 - 使用OHLC代替Candlestick（更稳定）
+    candlestick = go.Ohlc(
         x=df_continuous['continuous_index'],
         open=df_continuous['Open'],
         high=df_continuous['High'],
         low=df_continuous['Low'],
         close=df_continuous['Close'],
-        increasing_line_color='red',  # 阳线颜色
-        decreasing_line_color='green',  # 阴线颜色
+        increasing=dict(line=dict(color='red')),  # 阳线颜色
+        decreasing=dict(line=dict(color='green')),  # 阴线颜色
         name='K线',
-        hoverinfo='text',
-        text=hover_texts
+        hovertext=hover_texts,
+        hoverinfo='text'
     )
     fig.add_trace(candlestick, row=1, col=1)
     
