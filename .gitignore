@@ -20,8 +20,8 @@ wheels/
 .installed.cfg
 *.egg
 
-# Streamlit
-.streamlit/
+# Streamlit (保留config.toml)
+.streamlit/secrets.toml
 
 # 数据缓存
 data_cache/
