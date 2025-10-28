@@ -167,18 +167,47 @@ DEFAULT_SESSION_STATE = {
 # CSS样式
 PAGE_STYLE = """
 <style>
-.block-container {
+/* 主容器白色背景 */
+.stApp {
+    background-color: #ffffff;
+}
+
+/* 主内容区域 */
+.main .block-container {
     padding-top: 1rem;
     padding-bottom: 0rem;
+    background-color: #ffffff;
 }
+
+/* 侧边栏白色背景 */
+[data-testid="stSidebar"] {
+    background-color: #f8f9fa;
+}
+
+/* 标题样式 */
 h1, h2, h3, h4, h5, h6 {
     margin-top: 0.5rem;
     margin-bottom: 0.5rem;
+    color: #1f2937;
 }
+
 .title-container {
     margin-top: 0.8rem;
     padding-top: 0.3rem;
-    text-align: center;  /* 使标题居中 */
+    text-align: center;
+    color: #1f2937;
+}
+
+/* 卡片样式 */
+.stMetric {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 0.5rem;
+}
+
+/* 数据表格样式 */
+.dataframe {
+    background-color: #ffffff !important;
 }
 </style>
 """
