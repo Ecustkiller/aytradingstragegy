@@ -6,6 +6,15 @@ import matplotlib
 import os
 import sys
 
+# 设置时区为中国标准时间
+os.environ['TZ'] = 'Asia/Shanghai'
+try:
+    import time
+    time.tzset()
+except AttributeError:
+    # Windows系统不支持tzset
+    pass
+
 # 设置页面配置（必须是第一个Streamlit命令）
 st.set_page_config(
     page_title="AY Trading System",

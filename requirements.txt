@@ -31,6 +31,7 @@ psutil
 # ========== 其他工具 ==========
 python-dateutil>=2.8.0
 pytz>=2022.7
+tzdata
 pillow>=9.3.0
 jieba
 wordcloud

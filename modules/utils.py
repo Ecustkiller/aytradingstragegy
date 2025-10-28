@@ -3,6 +3,21 @@
 """
 import datetime
 import streamlit as st
+import pytz
+
+# 中国时区
+CHINA_TZ = pytz.timezone('Asia/Shanghai')
+
+def get_china_now():
+    """获取中国当前时间"""
+    return datetime.datetime.now(CHINA_TZ)
+
+def to_china_time(dt):
+    """将datetime对象转换为中国时区"""
+    if dt.tzinfo is None:
+        # 如果是naive datetime，假设为UTC并转换
+        dt = pytz.utc.localize(dt)
+    return dt.astimezone(CHINA_TZ)
 
 def format_stock_code(stock_code):
     """
