@@ -1,6 +1,7 @@
 """
 可视化模块 - 负责创建图表和可视化
 """
+import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
@@ -34,6 +35,30 @@ def create_plotly_chart(df, period, show_ma=False, show_boll=False, show_vol=Fal
         if col not in df.columns:
             print(f"警告: 数据中缺少 {col} 列")
             return None
+    
+    # 清理数据：移除包含NaN的行
+    df = df.copy()
+    df = df.dropna(subset=required_cols)
+    
+    if df.empty or len(df) < 2:
+        print("警告: 清理NaN后数据不足")
+        return None
+    
+    # 确保数据类型正确
+    for col in required_cols:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
+    
+    # 再次清理可能产生的NaN
+    df = df.dropna(subset=required_cols)
+    
+    if df.empty or len(df) < 2:
+        print("警告: 数据类型转换后数据不足")
+        return None
+    
+    print(f"✅ 数据验证通过，共 {len(df)} 条数据")
+    print(f"   列: {df.columns.tolist()}")
+    print(f"   Open范围: {df['Open'].min():.2f} - {df['Open'].max():.2f}")
+    print(f"   Close范围: {df['Close'].min():.2f} - {df['Close'].max():.2f}")
     
     # 确定子图行数和高度
     num_rows = 1  # 蜡烛图
