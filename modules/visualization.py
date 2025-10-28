@@ -146,14 +146,15 @@ def create_plotly_chart(df, period, show_ma=False, show_boll=False, show_vol=Fal
     )
     
     # 添加上下影线
-    for idx, row in df_continuous.iterrows():
+    for i in range(len(df_continuous)):
+        row = df_continuous.iloc[i]
         # 上影线
         fig.add_trace(
             go.Scatter(
                 x=[row['continuous_index'], row['continuous_index']],
                 y=[max(row['Open'], row['Close']), row['High']],
                 mode='lines',
-                line=dict(color=colors[idx], width=1),
+                line=dict(color=colors[i], width=1),
                 showlegend=False,
                 hoverinfo='skip'
             ),
@@ -165,7 +166,7 @@ def create_plotly_chart(df, period, show_ma=False, show_boll=False, show_vol=Fal
                 x=[row['continuous_index'], row['continuous_index']],
                 y=[row['Low'], min(row['Open'], row['Close'])],
                 mode='lines',
-                line=dict(color=colors[idx], width=1),
+                line=dict(color=colors[i], width=1),
                 showlegend=False,
                 hoverinfo='skip'
             ),
