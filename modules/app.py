@@ -6,20 +6,30 @@ import matplotlib
 import os
 import sys
 
+# 设置页面配置（必须是第一个Streamlit命令）
+st.set_page_config(
+    page_title="AY Trading System",
+    page_icon="📈",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
 # 设置非交互式后端，适合Streamlit
 matplotlib.use('Agg')
 
 # 导入自定义模块
-from .config import DEFAULT_SESSION_STATE, PERIOD_MAP, STOCK_CATEGORIES
-from .frontend import setup_page_config, setup_sidebar, display_market_status, display_chart, display_data_info, initialize_session_state, display_trade_advice
+from .config import DEFAULT_SESSION_STATE, PERIOD_MAP, STOCK_CATEGORIES, PAGE_STYLE
+from .frontend import setup_sidebar, display_market_status, display_chart, display_data_info, initialize_session_state, display_trade_advice
 from .data_loader import get_stock_data
 from .indicators import calculate_technical_indicators
 from .utils import validate_period
 
 def main():
     """主函数，应用程序入口点"""
-    # 设置页面配置
-    setup_page_config()
+    # 应用自定义CSS样式
+    st.markdown(PAGE_STYLE, unsafe_allow_html=True)
+    st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
+    st.markdown("<div class='title-container'><h1>AY Trading System 📈</h1></div>", unsafe_allow_html=True)
     
     # 初始化会话状态
     initialize_session_state()
