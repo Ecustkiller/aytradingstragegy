@@ -6,28 +6,34 @@ pandas>=1.5.0
 numpy>=1.23.0
 
 # ========== 回测引擎 ==========
-bt>=0.2.9                    # 回测框架
-ffn>=0.3.7                   # 金融函数
+bt>=0.2.9
+ffn>=0.3.7
 
 # ========== 数据可视化 ==========
 matplotlib>=3.6.0
 plotly>=5.14.0
 
 # ========== 数据源 ==========
-baostock>=0.8.8              # A股历史数据
-tushare>=1.2.89              # 专业金融数据
-akshare>=1.11.0              # 开源金融数据
-requests>=2.28.0             # Ashare数据源依赖
+baostock>=0.8.8
+tushare>=1.2.89
+akshare>=1.11.0
+requests>=2.28.0
+pywencai
 
 # ========== 技术指标 ==========
-ta-lib>=0.4.24               # (可选)技术指标库
-scipy>=1.9.0                 # 科学计算
+ta
+scipy>=1.9.0
 
 # ========== 日志与监控 ==========
-loguru>=0.6.0                # 日志库
+loguru>=0.6.0
+psutil
 
 # ========== 其他工具 ==========
-python-dateutil>=2.8.0       # 日期处理
-pytz>=2022.7                 # 时区处理
-pillow>=9.3.0                # 图像处理
-
+python-dateutil>=2.8.0
+pytz>=2022.7
+pillow>=9.3.0
+jieba
+wordcloud
+chinese-calendar
+lunar-python
+bcrypt
