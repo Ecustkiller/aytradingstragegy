@@ -197,7 +197,12 @@ def get_market_data(date, query_type):
 def get_trade_dates():
     """获取交易日数据"""
     try:
-        # 使用更稳定的方法生成交易日数据
+        trade_date_range = ak.tool_trade_date_hist_sina()
+        trade_date_range['trade_date'] = pd.to_datetime(trade_date_range['trade_date']).dt.date
+        return trade_date_range
+    except Exception as e:
+        # 如果akshare获取失败,使用备用方案
+        st.warning(f"使用备用交易日数据 (原因: {str(e)})")
         # 从2020年开始到今天,排除周末
         from datetime import datetime, timedelta
         
@@ -219,20 +224,6 @@ def get_trade_dates():
         })
         
         return trade_date_range
-    except Exception as e:
-        st.error(f"获取交易日数据时出错: {str(e)}")
-        # 如果失败,至少返回最近30天的工作日
-        from datetime import datetime, timedelta
-        end_date = datetime.now().date()
-        dates = []
-        for i in range(50):  # 多取一些天数确保有30个工作日
-            d = end_date - timedelta(days=i)
-            if d.weekday() < 5:  # 周一到周五
-                dates.append(d)
-        
-        return pd.DataFrame({
-            'trade_date': sorted(dates)
-        })
 
 def to_excel(df):
     """Excel导出函数"""
