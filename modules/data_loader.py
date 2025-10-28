@@ -157,6 +157,165 @@ def get_stock_data_ak(symbol, start, end, period_type):
         st.error(f"AKShare数据获取失败: {str(e)}")
         return pd.DataFrame()
 
+# 尝试导入Tushare相关模块
+try:
+    import sys
+    import os
+    # 添加aitrader_core到路径
+    sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'aitrader_core'))
+    from datafeed.tushare_loader import get_stock_data as tushare_get_stock_data
+    has_tushare = True
+except ImportError:
+    has_tushare = False
+    print("⚠️ Tushare模块未找到")
+
+# 尝试导入CSV数据加载器
+try:
+    from datafeed.csv_dataloader import CsvDataLoader
+    has_csv = True
+except ImportError:
+    has_csv = False
+    print("⚠️ CSV数据加载器未找到")
+
+def get_stock_data_tushare(symbol, start, end, period_type):
+    """使用Tushare获取股票数据"""
+    if not has_tushare:
+        st.warning("Tushare模块不可用，请检查aitrader_core/datafeed/tushare_loader.py")
+        return pd.DataFrame()
+    
+    try:
+        # 格式化股票代码为Tushare格式 (如: 600519.SH)
+        if '.' not in symbol:
+            if symbol.startswith('6'):
+                symbol = f"{symbol}.SH"
+            elif symbol.startswith(('0', '3')):
+                symbol = f"{symbol}.SZ"
+        
+        print(f"🔄 正在使用Tushare获取 {symbol} 的数据...")
+        
+        # 调用tushare_loader (注意：tushare_loader没有freq参数，只支持日线)
+        df = tushare_get_stock_data(
+            symbol=symbol,
+            start_date=start.strftime('%Y%m%d') if hasattr(start, 'strftime') else str(start).replace('-', ''),
+            end_date=end.strftime('%Y%m%d') if hasattr(end, 'strftime') else str(end).replace('-', '')
+        )
+        
+        if df is None or df.empty:
+            return pd.DataFrame()
+        
+        # 标准化列名 (tushare返回小写列名)
+        column_mapping = {
+            'date': 'Date',
+            'open': 'Open',
+            'high': 'High',
+            'low': 'Low',
+            'close': 'Close',
+            'volume': 'Volume'
+        }
+        
+        df = df.rename(columns=column_mapping)
+        
+        # 确保Date列是datetime类型
+        if 'Date' in df.columns:
+            df['Date'] = pd.to_datetime(df['Date'])
+            df = df.set_index('Date')
+        
+        # 只保留需要的列
+        required_columns = ['Open', 'High', 'Low', 'Close', 'Volume']
+        available_columns = [col for col in required_columns if col in df.columns]
+        df = df[available_columns]
+        
+        # 按日期排序
+        df = df.sort_index()
+        
+        print(f"✅ Tushare数据获取成功! 数据条数: {len(df)}")
+        return df
+        
+    except Exception as e:
+        st.error(f"Tushare数据获取失败: {str(e)}")
+        import traceback
+        print(f"Tushare错误详情: {traceback.format_exc()}")
+        return pd.DataFrame()
+
+def get_stock_data_csv(symbol, start, end, period_type):
+    """从本地CSV文件获取股票数据"""
+    if not has_csv:
+        st.warning("CSV数据加载器不可用")
+        return pd.DataFrame()
+    
+    try:
+        # 格式化股票代码
+        if '.' not in symbol:
+            if symbol.startswith('6'):
+                symbol = f"{symbol}.SH"
+            elif symbol.startswith(('0', '3')):
+                symbol = f"{symbol}.SZ"
+        
+        print(f"🔄 正在从本地CSV获取 {symbol} 的数据...")
+        
+        # 首先尝试用户目录下的stock_data文件夹
+        user_stock_data_dir = os.path.expanduser('~/stock_data')
+        
+        # 创建CSV加载器实例 (CsvDataLoader不接受data_dir参数)
+        csv_loader = CsvDataLoader()
+        
+        # 根据路径决定使用哪个目录
+        if os.path.exists(user_stock_data_dir):
+            csv_path = user_stock_data_dir
+            print(f"📁 使用用户数据目录: {user_stock_data_dir}")
+        else:
+            # 回退到默认路径 (使用'quotes'会自动使用DATA_DIR/quotes)
+            csv_path = 'quotes'
+            print(f"📁 使用默认数据目录")
+        
+        # 读取CSV数据 (传入path参数)
+        df = csv_loader._read_csv(symbol, path=csv_path)
+        
+        if df is None or df.empty:
+            st.warning(f"本地CSV未找到 {symbol} 的数据文件")
+            st.info("💡 请先在「AI数据管理」中更新股票数据")
+            return pd.DataFrame()
+        
+        # 标准化列名 (CSV通常返回小写列名)
+        column_mapping = {
+            'date': 'Date',
+            'open': 'Open',
+            'high': 'High',
+            'low': 'Low',
+            'close': 'Close',
+            'volume': 'Volume'
+        }
+        
+        df = df.rename(columns=column_mapping)
+        
+        # 确保Date列是datetime类型并设置为索引
+        if 'Date' in df.columns:
+            df['Date'] = pd.to_datetime(df['Date'])
+            df = df.set_index('Date')
+        
+        # 只保留需要的列
+        required_columns = ['Open', 'High', 'Low', 'Close', 'Volume']
+        available_columns = [col for col in required_columns if col in df.columns]
+        df = df[available_columns]
+        
+        # 按日期过滤
+        start_date = pd.to_datetime(start)
+        end_date = pd.to_datetime(end)
+        df = df[(df.index >= start_date) & (df.index <= end_date)]
+        
+        if df.empty:
+            st.warning(f"⚠️ 在指定日期范围内({start} 至 {end})未找到数据")
+            return pd.DataFrame()
+        
+        print(f"✅ CSV数据加载成功! 数据条数: {len(df)}")
+        return df
+        
+    except Exception as e:
+        st.error(f"CSV数据加载失败: {str(e)}")
+        import traceback
+        print(f"CSV错误详情: {traceback.format_exc()}")
+        return pd.DataFrame()
+
 def get_stock_data(symbol, start, end, period_type, data_source="Ashare"):
     """获取股票数据的主函数，根据数据源选择不同的获取方法"""
     try:
@@ -172,6 +331,18 @@ def get_stock_data(symbol, start, end, period_type, data_source="Ashare"):
         elif data_source == "Ashare" and not has_ashare:
             st.warning("💡 未检测到Ashare模块，使用AKShare数据源")
             df = get_stock_data_ak(symbol, start, end, period_type)
+        elif data_source == "Tushare":
+            if has_tushare:
+                df = get_stock_data_tushare(symbol, start, end, period_type)
+            else:
+                st.warning("💡 Tushare模块不可用，回退到AKShare")
+                df = get_stock_data_ak(symbol, start, end, period_type)
+        elif data_source == "本地CSV":
+            if has_csv:
+                df = get_stock_data_csv(symbol, start, end, period_type)
+            else:
+                st.warning("💡 CSV数据源不可用，回退到AKShare")
+                df = get_stock_data_ak(symbol, start, end, period_type)
         else:
             # 使用AKShare数据源
             df = get_stock_data_ak(symbol, start, end, period_type)

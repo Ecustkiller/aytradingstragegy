@@ -117,6 +117,61 @@ def main():
         except Exception as e:
             st.error(f"❌ AI数据管理功能出现错误: {str(e)}")
         return
+    elif params["function_mode"] == "📊 问财数据采集":
+        # 显示问财数据采集界面
+        try:
+            from .wencai_data_collector import display_wencai_collector
+            display_wencai_collector()
+        except ImportError as e:
+            st.error("❌ 问财数据采集模块加载失败")
+            st.info(f"错误详情: {e}")
+        except Exception as e:
+            st.error(f"❌ 问财数据采集功能出现错误: {str(e)}")
+        return
+    elif params["function_mode"] == "🎯 竞价分析":
+        # 显示竞价分析界面
+        try:
+            from .auction_analysis import display_auction_analysis
+            display_auction_analysis()
+        except ImportError as e:
+            st.error("❌ 竞价分析模块加载失败")
+            st.info(f"错误详情: {e}")
+        except Exception as e:
+            st.error(f"❌ 竞价分析功能出现错误: {str(e)}")
+        return
+    elif params["function_mode"] == "💰 A股估值":
+        # 显示A股估值分析界面
+        try:
+            from .buffett_indicator import display_buffett_indicator
+            display_buffett_indicator()
+        except ImportError as e:
+            st.error("❌ A股估值分析模块加载失败")
+            st.info(f"错误详情: {e}")
+        except Exception as e:
+            st.error(f"❌ A股估值分析功能出现错误: {str(e)}")
+        return
+    elif params["function_mode"] == "📈 涨停连板":
+        # 显示涨停连板分析界面
+        try:
+            from .limit_up_analysis import display_limit_up_analysis
+            display_limit_up_analysis()
+        except ImportError as e:
+            st.error("❌ 涨停连板分析模块加载失败")
+            st.info(f"错误详情: {e}")
+        except Exception as e:
+            st.error(f"❌ 涨停连板分析功能出现错误: {str(e)}")
+        return
+    elif params["function_mode"] == "📅 每日宜忌":
+        # 显示每日宜忌界面
+        try:
+            from .daily_calendar import display_daily_calendar
+            display_daily_calendar()
+        except ImportError as e:
+            st.error("❌ 每日宜忌模块加载失败")
+            st.info(f"错误详情: {e}")
+        except Exception as e:
+            st.error(f"❌ 每日宜忌功能出现错误: {str(e)}")
+        return
     elif params["function_mode"] == "🎯 突破选股":
         # 显示突破选股界面
         try:

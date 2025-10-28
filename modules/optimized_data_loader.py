@@ -17,7 +17,15 @@ from .async_data_processor import (
     performance_monitor,
     data_cache
 )
-from .data_loader import get_stock_data_ak, get_stock_data_ashare, has_ashare
+from .data_loader import (
+    get_stock_data_ak, 
+    get_stock_data_ashare,
+    get_stock_data_tushare,
+    get_stock_data_csv,
+    has_ashare,
+    has_tushare,
+    has_csv
+)
 
 class OptimizedDataLoader:
     """优化的数据加载器"""
@@ -31,6 +39,10 @@ class OptimizedDataLoader:
         """优化的股票数据获取"""
         if data_source == "Ashare" and has_ashare:
             return get_stock_data_ashare(symbol, start, end, period_type)
+        elif data_source == "Tushare" and has_tushare:
+            return get_stock_data_tushare(symbol, start, end, period_type)
+        elif data_source == "本地CSV" and has_csv:
+            return get_stock_data_csv(symbol, start, end, period_type)
         else:
             return get_stock_data_ak(symbol, start, end, period_type)
     

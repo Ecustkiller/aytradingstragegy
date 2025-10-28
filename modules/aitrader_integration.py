@@ -10,8 +10,8 @@ import sys
 from pathlib import Path
 import pandas as pd
 
-# AI Trader 项目路径
-AITRADER_PATH = Path.home() / "Downloads" / "aitrader_v3.3_添加交易细节"
+# AI Trader 核心模块路径 (项目内置)
+AITRADER_PATH = Path(__file__).parent.parent / "aitrader_core"
 
 # 添加AI Trader路径到sys.path（用于导入模块）
 if str(AITRADER_PATH) not in sys.path:

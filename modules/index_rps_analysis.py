@@ -2,11 +2,18 @@
 指数RPS强度排名分析模块 - 基于相对强度排名的指数分析
 """
 import streamlit as st
-import pywencai
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 from .cache_manager import cached_function, display_cache_controls
+
+# 尝试导入 pywencai，如果失败则提供降级方案
+try:
+    import pywencai
+    HAS_PYWENCAI = True
+except Exception as e:
+    HAS_PYWENCAI = False
+    PYWENCAI_ERROR = str(e)
 
 def setup_index_rps_styles():
     """设置指数RPS分析的CSS样式"""
@@ -83,6 +90,12 @@ def calculate_rps(df, change_col):
 
 def get_index_data(period):
     """获取指数数据"""
+    if not HAS_PYWENCAI:
+        st.error(f"❌ pywencai 模块不可用: {PYWENCAI_ERROR}")
+        st.info("💡 指数RPS分析功能需要 pywencai 库，但该库在当前系统上无法正常工作。")
+        st.warning("⚠️ 这是一个已知问题：py_mini_racer 在 macOS 上缺少原生库支持。")
+        return None
+    
     start_date, end_date = get_date_range(period)
     query = f"指数代码886开头，近{period}日涨跌幅"
     

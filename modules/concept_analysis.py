@@ -2,7 +2,6 @@
 涨停概念分析模块 - A股涨停概念统计与分析
 """
 import streamlit as st
-import pywencai
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
@@ -10,6 +9,14 @@ import akshare as ak
 import plotly.express as px
 from io import BytesIO
 from .cache_manager import cached_function, display_cache_controls, cache_manager
+
+# 尝试导入 pywencai，如果失败则提供降级方案
+try:
+    import pywencai
+    HAS_PYWENCAI = True
+except Exception as e:
+    HAS_PYWENCAI = False
+    PYWENCAI_ERROR = str(e)
 
 # 设置全局显示选项
 pd.set_option('display.unicode.ambiguous_as_wide', True)
@@ -177,6 +184,12 @@ def setup_concept_analysis_styles():
 @cached_function("concept_market", cache_hours=24)
 def get_market_data(date, query_type):
     """获取市场数据"""
+    if not HAS_PYWENCAI:
+        st.error(f"❌ pywencai 模块不可用: {PYWENCAI_ERROR}")
+        st.info("💡 涨停概念分析功能需要 pywencai 库，但该库在当前系统上无法正常工作。")
+        st.warning("⚠️ 这是一个已知问题：py_mini_racer 在 macOS 上缺少原生库支持。")
+        return None
+    
     query_map = {
         'limit_up': f"非ST，{date.strftime('%Y%m%d')}涨停",
         'limit_down': f"非ST,{date.strftime('%Y%m%d')}跌停",
