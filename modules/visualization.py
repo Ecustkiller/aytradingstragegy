@@ -338,7 +338,7 @@ def create_plotly_chart(df, period, show_ma=False, show_boll=False, show_vol=Fal
         # 日线级别数据跳过周末和节假日
         try:
             from modules.trading_calendar import is_trading_day
-            import pandas as pd
+            from datetime import datetime, timedelta
             
             # 获取数据日期范围
             start_date = df.index.min()
@@ -358,8 +358,6 @@ def create_plotly_chart(df, period, show_ma=False, show_boll=False, show_vol=Fal
                 range_breaks = []
                 
                 # 找到连续的非交易日并转换为bounds格式
-                from datetime import datetime, timedelta
-                import pandas as pd
                 
                 # 将日期字符串转换为日期对象并排序
                 non_trading_dates = sorted([pd.to_datetime(d) for d in non_trading_days])
