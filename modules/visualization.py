@@ -116,20 +116,61 @@ def create_plotly_chart(df, period, show_ma=False, show_boll=False, show_vol=Fal
     df_continuous['date_str'] = df.index.strftime('%Y-%m-%d')
     df_continuous['continuous_index'] = range(len(df))
     
-    # 添加K线图 - 使用OHLC代替Candlestick（更稳定）
-    candlestick = go.Ohlc(
-        x=df_continuous['continuous_index'],
-        open=df_continuous['Open'],
-        high=df_continuous['High'],
-        low=df_continuous['Low'],
-        close=df_continuous['Close'],
-        increasing=dict(line=dict(color='red')),  # 阳线颜色
-        decreasing=dict(line=dict(color='green')),  # 阴线颜色
-        name='K线',
-        hovertext=hover_texts,
-        hoverinfo='text'
+    # 调试信息：打印前几行数据
+    print(f"📊 准备绘制K线图:")
+    print(f"   数据形状: {df_continuous.shape}")
+    print(f"   前3行数据:")
+    print(df_continuous[['Open', 'High', 'Low', 'Close', 'continuous_index']].head(3))
+    
+    # 手动绘制K线 - 使用 Bar + Scatter 组合（最可靠的方法）
+    colors = ['red' if row['Close'] >= row['Open'] else 'green' 
+              for _, row in df_continuous.iterrows()]
+    
+    # 添加K线柱状图（实体部分）
+    fig.add_trace(
+        go.Bar(
+            x=df_continuous['continuous_index'],
+            y=[abs(row['Close'] - row['Open']) for _, row in df_continuous.iterrows()],
+            base=[min(row['Open'], row['Close']) for _, row in df_continuous.iterrows()],
+            marker=dict(
+                color=colors,
+                line=dict(width=0)
+            ),
+            width=0.6,
+            name='K线实体',
+            hovertext=hover_texts,
+            hoverinfo='text',
+            showlegend=False
+        ),
+        row=1, col=1
     )
-    fig.add_trace(candlestick, row=1, col=1)
+    
+    # 添加上下影线
+    for idx, row in df_continuous.iterrows():
+        # 上影线
+        fig.add_trace(
+            go.Scatter(
+                x=[row['continuous_index'], row['continuous_index']],
+                y=[max(row['Open'], row['Close']), row['High']],
+                mode='lines',
+                line=dict(color=colors[idx], width=1),
+                showlegend=False,
+                hoverinfo='skip'
+            ),
+            row=1, col=1
+        )
+        # 下影线
+        fig.add_trace(
+            go.Scatter(
+                x=[row['continuous_index'], row['continuous_index']],
+                y=[row['Low'], min(row['Open'], row['Close'])],
+                mode='lines',
+                line=dict(color=colors[idx], width=1),
+                showlegend=False,
+                hoverinfo='skip'
+            ),
+            row=1, col=1
+        )
     
     # 均线系统 - 只在选择显示均线时添加
     if show_ma:
