@@ -54,11 +54,28 @@ def setup_sidebar():
             
             # 应用代理设置
             if st.button("🔄 应用代理设置", key="apply_proxy"):
-                enable_global_proxy(proxy_input if proxy_input else None)
-                st.session_state.global_proxy_enabled = True
-                st.session_state.global_proxy_address = proxy_input
-                st.success(f"✅ 全局代理已启用: {get_current_proxy() or '免费代理池'}")
-                st.rerun()
+                with st.spinner("正在测试代理连接..."):
+                    success = enable_global_proxy(proxy_input if proxy_input else None)
+                
+                if success:
+                    st.session_state.global_proxy_enabled = True
+                    st.session_state.global_proxy_address = proxy_input
+                    st.success(f"✅ 全局代理已启用: {get_current_proxy() or '免费代理池'}")
+                    st.rerun()
+                else:
+                    st.session_state.global_proxy_enabled = False
+                    st.error("❌ 代理连接失败，请检查代理地址或确保代理服务正在运行")
+                    st.info("""
+                    **可能的原因**：
+                    1. 代理服务未启动（Clash/V2Ray等）
+                    2. 代理地址或端口错误
+                    3. 代理服务不接受连接
+                    
+                    **建议**：
+                    - 确认代理工具正在运行
+                    - 检查代理端口（常见：7890, 10808, 1080）
+                    - 或者暂时不使用代理
+                    """)
         else:
             if st.session_state.get('global_proxy_enabled', False):
                 disable_global_proxy()
