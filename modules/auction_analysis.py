@@ -47,12 +47,27 @@ def get_strategy_stocks(query, selected_date, max_retries=MAX_RETRIES):
     
     for attempt in range(max_retries):
         try:
-            df = pywencai.get(query=query, sort_key='竞价成交金额', sort_order='desc')
-            if df is None or df.empty:
+            result = pywencai.get(query=query, sort_key='竞价成交金额', sort_order='desc')
+            
+            # 检查返回值类型
+            if result is None:
                 if attempt < max_retries - 1:
                     time.sleep(RETRY_DELAY)
                     continue
-                return None, "策略无数据"
+                return None, "pywencai返回空结果，可能是查询条件无效或网络问题"
+            
+            # 如果返回的是字典，尝试提取DataFrame
+            if isinstance(result, dict):
+                df = result.get('data') if 'data' in result else pd.DataFrame()
+            else:
+                df = result
+            
+            # 检查DataFrame是否为空
+            if df is None or (isinstance(df, pd.DataFrame) and df.empty):
+                if attempt < max_retries - 1:
+                    time.sleep(RETRY_DELAY)
+                    continue
+                return None, "策略无数据，请尝试其他日期或条件"
             
             date_str = selected_date.strftime("%Y%m%d")
             columns_to_rename = {
@@ -68,8 +83,19 @@ def get_strategy_stocks(query, selected_date, max_retries=MAX_RETRIES):
                 f'分时区间收盘价:前复权[{date_str} 09:25:00]': '竞价价格',
                 f'竞价未匹配金额[{date_str}]': '竞价未匹配金额'
             }
-            df = df.rename(columns=columns_to_rename)
+            
+            # 只重命名存在的列
+            existing_columns = {k: v for k, v in columns_to_rename.items() if k in df.columns}
+            if existing_columns:
+                df = df.rename(columns=existing_columns)
+            
             return df[:MAX_STOCKS], None
+        except AttributeError as e:
+            # 专门处理 'NoneType' object has no attribute 'get' 错误
+            if attempt < max_retries - 1:
+                time.sleep(RETRY_DELAY)
+            else:
+                return None, f"数据格式错误: pywencai可能返回了意外的数据格式"
         except Exception as e:
             if attempt < max_retries - 1:
                 time.sleep(RETRY_DELAY)
