@@ -47,13 +47,8 @@ def get_strategy_stocks(query, selected_date, max_retries=MAX_RETRIES):
     
     for attempt in range(max_retries):
         try:
-            # 调用 pywencai
-            result = pywencai.get(query=query, sort_key='竞价成交金额', sort_order='desc')
-            
-            # 调试信息：打印返回类型
-            print(f"DEBUG: pywencai.get() 返回类型: {type(result)}")
-            if result is not None:
-                print(f"DEBUG: 返回内容前100字符: {str(result)[:100]}")
+            # 调用 pywencai - 不使用排序参数（可能导致问题）
+            result = pywencai.get(query=query)
             
             # 检查返回值类型
             if result is None:
@@ -65,29 +60,23 @@ def get_strategy_stocks(query, selected_date, max_retries=MAX_RETRIES):
             # 处理不同的返回格式
             df = None
             
-            # 情况1: 直接返回 DataFrame
+            # 情况1: 直接返回 DataFrame (最常见)
             if isinstance(result, pd.DataFrame):
                 df = result
-                print(f"DEBUG: 直接获得DataFrame，形状: {df.shape}")
             
-            # 情况2: 返回字典，包含 'data' 键
+            # 情况2: 返回字典
             elif isinstance(result, dict):
                 if 'data' in result:
                     df = result['data']
-                    print(f"DEBUG: 从字典['data']获取DataFrame")
                 else:
                     # 尝试将字典转换为DataFrame
                     try:
                         df = pd.DataFrame(result)
-                        print(f"DEBUG: 将字典转换为DataFrame")
-                    except Exception as e:
-                        print(f"DEBUG: 字典转DataFrame失败: {e}")
-                        print(f"DEBUG: 字典的键: {result.keys() if hasattr(result, 'keys') else 'N/A'}")
-                        return None, f"无法解析pywencai返回的字典格式，键: {list(result.keys())[:5]}"
+                    except Exception:
+                        return None, f"无法解析pywencai返回的字典格式"
             
             # 情况3: 其他类型
             else:
-                print(f"DEBUG: 未知的返回类型: {type(result)}")
                 return None, f"pywencai返回了不支持的数据类型: {type(result).__name__}"
             
             # 检查DataFrame是否有效
@@ -102,9 +91,6 @@ def get_strategy_stocks(query, selected_date, max_retries=MAX_RETRIES):
                     time.sleep(RETRY_DELAY)
                     continue
                 return None, "策略无数据，请尝试其他日期或条件"
-            
-            # 打印列名用于调试
-            print(f"DEBUG: DataFrame列名: {df.columns.tolist()[:10]}")
             
             date_str = selected_date.strftime("%Y%m%d")
             columns_to_rename = {
@@ -125,23 +111,17 @@ def get_strategy_stocks(query, selected_date, max_retries=MAX_RETRIES):
             existing_columns = {k: v for k, v in columns_to_rename.items() if k in df.columns}
             if existing_columns:
                 df = df.rename(columns=existing_columns)
-                print(f"DEBUG: 重命名了 {len(existing_columns)} 个列")
             
             return df[:MAX_STOCKS], None
             
-        except AttributeError as e:
-            # 专门处理 'NoneType' object has no attribute 'get' 错误
-            print(f"DEBUG: AttributeError: {e}")
-            if attempt < max_retries - 1:
-                time.sleep(RETRY_DELAY)
-            else:
-                return None, f"数据格式错误: {str(e)}"
         except Exception as e:
-            print(f"DEBUG: 异常类型: {type(e).__name__}, 消息: {str(e)}")
             if attempt < max_retries - 1:
                 time.sleep(RETRY_DELAY)
             else:
-                return None, f"查询失败 (尝试{max_retries}次): {str(e)}"
+                return None, f"查询失败: {str(e)}"
+    
+    # 所有重试都失败了
+    return None, "查询失败，请检查网络连接或稍后重试"
 
 def run_strategy(query, selected_date, market_cap):
     """运行竞价分析策略"""
