@@ -33,6 +33,46 @@ def setup_sidebar():
         # 应用侧边栏样式
         st.markdown(SIDEBAR_STYLE, unsafe_allow_html=True)
         
+        # 全局代理设置（放在最前面）
+        st.markdown("### 🌐 全局代理设置", unsafe_allow_html=True)
+        
+        from .global_proxy import enable_global_proxy, disable_global_proxy, is_proxy_enabled, get_current_proxy
+        
+        enable_proxy = st.checkbox(
+            "启用全局代理",
+            value=st.session_state.get('global_proxy_enabled', False),
+            help="启用后，所有网络请求都将通过代理，避免IP被封"
+        )
+        
+        if enable_proxy:
+            proxy_input = st.text_input(
+                "代理地址",
+                value=st.session_state.get('global_proxy_address', ''),
+                placeholder="http://127.0.0.1:7890 或留空使用免费代理",
+                help="推荐使用本地代理工具（Clash/V2Ray），留空将使用免费代理池"
+            )
+            
+            # 应用代理设置
+            if st.button("🔄 应用代理设置", key="apply_proxy"):
+                enable_global_proxy(proxy_input if proxy_input else None)
+                st.session_state.global_proxy_enabled = True
+                st.session_state.global_proxy_address = proxy_input
+                st.success(f"✅ 全局代理已启用: {get_current_proxy() or '免费代理池'}")
+                st.rerun()
+        else:
+            if st.session_state.get('global_proxy_enabled', False):
+                disable_global_proxy()
+                st.session_state.global_proxy_enabled = False
+                st.info("❌ 全局代理已禁用")
+        
+        # 显示当前代理状态
+        if is_proxy_enabled():
+            st.info(f"🟢 代理状态：已启用\n📍 当前代理：{get_current_proxy() or '免费代理池'}")
+        else:
+            st.info("🔴 代理状态：未启用（直连）")
+        
+        st.markdown("---")
+        
         # 功能选择
         function_mode = st.radio(
             "选择功能模式",
