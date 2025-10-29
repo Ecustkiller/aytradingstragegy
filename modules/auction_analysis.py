@@ -47,7 +47,13 @@ def get_strategy_stocks(query, selected_date, max_retries=MAX_RETRIES):
     
     for attempt in range(max_retries):
         try:
+            # 调用 pywencai
             result = pywencai.get(query=query, sort_key='竞价成交金额', sort_order='desc')
+            
+            # 调试信息：打印返回类型
+            print(f"DEBUG: pywencai.get() 返回类型: {type(result)}")
+            if result is not None:
+                print(f"DEBUG: 返回内容前100字符: {str(result)[:100]}")
             
             # 检查返回值类型
             if result is None:
@@ -56,18 +62,49 @@ def get_strategy_stocks(query, selected_date, max_retries=MAX_RETRIES):
                     continue
                 return None, "pywencai返回空结果，可能是查询条件无效或网络问题"
             
-            # 如果返回的是字典，尝试提取DataFrame
-            if isinstance(result, dict):
-                df = result.get('data') if 'data' in result else pd.DataFrame()
-            else:
-                df = result
+            # 处理不同的返回格式
+            df = None
             
-            # 检查DataFrame是否为空
-            if df is None or (isinstance(df, pd.DataFrame) and df.empty):
+            # 情况1: 直接返回 DataFrame
+            if isinstance(result, pd.DataFrame):
+                df = result
+                print(f"DEBUG: 直接获得DataFrame，形状: {df.shape}")
+            
+            # 情况2: 返回字典，包含 'data' 键
+            elif isinstance(result, dict):
+                if 'data' in result:
+                    df = result['data']
+                    print(f"DEBUG: 从字典['data']获取DataFrame")
+                else:
+                    # 尝试将字典转换为DataFrame
+                    try:
+                        df = pd.DataFrame(result)
+                        print(f"DEBUG: 将字典转换为DataFrame")
+                    except Exception as e:
+                        print(f"DEBUG: 字典转DataFrame失败: {e}")
+                        print(f"DEBUG: 字典的键: {result.keys() if hasattr(result, 'keys') else 'N/A'}")
+                        return None, f"无法解析pywencai返回的字典格式，键: {list(result.keys())[:5]}"
+            
+            # 情况3: 其他类型
+            else:
+                print(f"DEBUG: 未知的返回类型: {type(result)}")
+                return None, f"pywencai返回了不支持的数据类型: {type(result).__name__}"
+            
+            # 检查DataFrame是否有效
+            if df is None or not isinstance(df, pd.DataFrame):
+                if attempt < max_retries - 1:
+                    time.sleep(RETRY_DELAY)
+                    continue
+                return None, "无法从pywencai获取有效的DataFrame"
+            
+            if df.empty:
                 if attempt < max_retries - 1:
                     time.sleep(RETRY_DELAY)
                     continue
                 return None, "策略无数据，请尝试其他日期或条件"
+            
+            # 打印列名用于调试
+            print(f"DEBUG: DataFrame列名: {df.columns.tolist()[:10]}")
             
             date_str = selected_date.strftime("%Y%m%d")
             columns_to_rename = {
@@ -88,15 +125,19 @@ def get_strategy_stocks(query, selected_date, max_retries=MAX_RETRIES):
             existing_columns = {k: v for k, v in columns_to_rename.items() if k in df.columns}
             if existing_columns:
                 df = df.rename(columns=existing_columns)
+                print(f"DEBUG: 重命名了 {len(existing_columns)} 个列")
             
             return df[:MAX_STOCKS], None
+            
         except AttributeError as e:
             # 专门处理 'NoneType' object has no attribute 'get' 错误
+            print(f"DEBUG: AttributeError: {e}")
             if attempt < max_retries - 1:
                 time.sleep(RETRY_DELAY)
             else:
-                return None, f"数据格式错误: pywencai可能返回了意外的数据格式"
+                return None, f"数据格式错误: {str(e)}"
         except Exception as e:
+            print(f"DEBUG: 异常类型: {type(e).__name__}, 消息: {str(e)}")
             if attempt < max_retries - 1:
                 time.sleep(RETRY_DELAY)
             else:
