@@ -38,55 +38,66 @@ def setup_sidebar():
         
         from .global_proxy import enable_global_proxy, disable_global_proxy, is_proxy_enabled, get_current_proxy
         
+        # 简化为单个开关
         enable_proxy = st.checkbox(
-            "启用全局代理",
+            "启用全局代理（自动检测）",
             value=st.session_state.get('global_proxy_enabled', False),
-            help="启用后，所有网络请求都将通过代理，避免IP被封"
+            help="自动检测并使用本地代理工具（Hiddify、Clash、V2Ray等）\n支持端口：12334/12335/7890/7891/10808/10809"
         )
         
-        if enable_proxy:
-            proxy_input = st.text_input(
-                "代理地址",
-                value=st.session_state.get('global_proxy_address', ''),
-                placeholder="http://127.0.0.1:7890 或留空使用免费代理",
-                help="推荐使用本地代理工具（Clash/V2Ray），留空将使用免费代理池"
-            )
-            
-            # 应用代理设置
-            if st.button("🔄 应用代理设置", key="apply_proxy"):
-                with st.spinner("正在测试代理连接..."):
-                    success = enable_global_proxy(proxy_input if proxy_input else None)
+        # 状态变化时触发
+        if enable_proxy != st.session_state.get('global_proxy_enabled', False):
+            if enable_proxy:
+                with st.spinner("🔍 正在自动检测本地代理..."):
+                    success = enable_global_proxy()
                 
                 if success:
                     st.session_state.global_proxy_enabled = True
-                    st.session_state.global_proxy_address = proxy_input
-                    st.success(f"✅ 全局代理已启用: {get_current_proxy() or '免费代理池'}")
+                    st.success(f"✅ 全局代理已启用: {get_current_proxy()}")
                     st.rerun()
                 else:
                     st.session_state.global_proxy_enabled = False
-                    st.error("❌ 代理连接失败，请检查代理地址或确保代理服务正在运行")
+                    st.error("❌ 未检测到可用代理")
                     st.info("""
-                    **可能的原因**：
-                    1. 代理服务未启动（Clash/V2Ray等）
-                    2. 代理地址或端口错误
-                    3. 代理服务不接受连接
+                    **请确保以下之一正在运行**：
+                    - Hiddify (端口 12334/12335)
+                    - Clash (端口 7890/7891)
+                    - V2Ray (端口 10808/10809)
                     
-                    **建议**：
-                    - 确认代理工具正在运行
-                    - 检查代理端口（常见：7890, 10808, 1080）
-                    - 或者暂时不使用代理
+                    **或者手动配置代理工具**，确保HTTP代理端口已开启。
                     """)
-        else:
-            if st.session_state.get('global_proxy_enabled', False):
+                    # 取消勾选
+                    st.rerun()
+            else:
                 disable_global_proxy()
                 st.session_state.global_proxy_enabled = False
-                st.info("❌ 全局代理已禁用")
+                st.info("🔴 全局代理已禁用")
+                st.rerun()
         
         # 显示当前代理状态
         if is_proxy_enabled():
-            st.info(f"🟢 代理状态：已启用\n📍 当前代理：{get_current_proxy() or '免费代理池'}")
+            from .global_proxy import switch_to_next_proxy, get_available_proxies
+            
+            current_proxy = get_current_proxy()
+            available_proxies = get_available_proxies()
+            
+            # 显示当前代理和可用代理数量
+            proxy_count = len(available_proxies) if available_proxies else 1
+            st.success(f"🟢 **代理已启用**\n\n📍 当前代理：`{current_proxy}`\n\n🔢 可用代理数：{proxy_count}")
+            
+            # 如果有多个代理或需要重新扫描，显示切换按钮
+            if st.button("🔄 切换到下一个代理", help="如果当前代理被封，可切换到其他可用代理"):
+                with st.spinner("正在切换代理..."):
+                    success = switch_to_next_proxy()
+                
+                if success:
+                    st.success(f"✅ 已切换到新代理: {get_current_proxy()}")
+                    st.rerun()
+                else:
+                    st.error("❌ 切换失败，没有其他可用代理")
+                    st.info("建议：\n1. 检查代理工具是否正常运行\n2. 尝试重启代理工具\n3. 或者暂时禁用代理使用直连")
         else:
-            st.info("🔴 代理状态：未启用（直连）")
+            st.info("🔴 代理未启用（使用直连）")
         
         st.markdown("---")
         

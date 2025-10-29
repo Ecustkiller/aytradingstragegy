@@ -40,30 +40,22 @@ def safe_format(x, divisor=1, suffix=''):
     except (ValueError, TypeError):
         return str(x)
 
-def get_strategy_stocks(query, selected_date, max_retries=MAX_RETRIES, use_proxy=False, custom_proxy=None):
+def get_strategy_stocks(query, selected_date, max_retries=MAX_RETRIES):
     """获取竞价策略股票
     
     Args:
         query: 查询条件
         selected_date: 选择的日期
         max_retries: 最大重试次数
-        use_proxy: 是否使用代理
-        custom_proxy: 自定义代理地址
     """
     if not HAS_PYWENCAI:
         return None, "pywencai库未安装或不可用"
     
     for attempt in range(max_retries):
         try:
-            # 调用 pywencai - 捕获所有可能的异常
+            # 调用 pywencai - 全局代理已生效，无需手动传入
             try:
-                if use_proxy:
-                    # 使用代理包装器
-                    from .pywencai_proxy import get_with_proxy
-                    result = get_with_proxy(query=query, use_proxy=True, custom_proxy=custom_proxy)
-                else:
-                    # 直接调用
-                    result = pywencai.get(query=query)
+                result = pywencai.get(query=query)
             except AttributeError as e:
                 # pywencai 内部的 AttributeError（通常是网络问题导致返回None）
                 if attempt < max_retries - 1:
@@ -151,23 +143,17 @@ def get_strategy_stocks(query, selected_date, max_retries=MAX_RETRIES, use_proxy
     # 所有重试都失败了
     return None, "查询失败，请检查网络连接或稍后重试"
 
-def run_strategy(query, selected_date, market_cap, use_proxy=False, custom_proxy=None):
+def run_strategy(query, selected_date, market_cap):
     """运行竞价分析策略"""
     st.write(f"**选股日期**: {selected_date.strftime('%Y-%m-%d')}")
     st.write(f"**市值筛选**: {market_cap}亿")
-    
-    if use_proxy:
-        if custom_proxy:
-            st.info(f"🌐 使用自定义代理: {custom_proxy}")
-        else:
-            st.info("🌐 使用免费代理池")
     
     if not is_workday(selected_date) or is_holiday(selected_date):
         st.warning("⚠️ 所选日期不是A股交易日，请选择其他日期。")
         return
     
     with st.spinner("正在获取股票信息..."):
-        df, error = get_strategy_stocks(query, selected_date, use_proxy=use_proxy, custom_proxy=custom_proxy)
+        df, error = get_strategy_stocks(query, selected_date)
     
     if error:
         st.error(f"❌ {error}")
@@ -296,7 +282,7 @@ def display_auction_analysis():
     # 参数配置
     st.subheader("🔧 参数设置")
     
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     
     with col1:
         # 日期选择 - 默认今天
@@ -318,29 +304,6 @@ def display_auction_analysis():
             step=10,
             help="筛选市值大于此值的股票"
         )
-    
-    with col3:
-        # 代理设置
-        use_proxy = st.checkbox(
-            "🌐 使用代理",
-            value=False,
-            help="如果问财接口被封，可以尝试使用代理"
-        )
-    
-    # 如果启用代理，显示代理配置
-    if use_proxy:
-        st.markdown("##### 🔌 代理配置（可选）")
-        custom_proxy = st.text_input(
-            "自定义代理",
-            value="",
-            placeholder="例如：http://127.0.0.1:7890 或留空使用免费代理",
-            help="留空将自动尝试使用免费代理池"
-        )
-        
-        # 保存到 session_state
-        st.session_state.custom_proxy = custom_proxy if custom_proxy else None
-    else:
-        st.session_state.custom_proxy = None
     
     # 查询策略选择
     st.markdown("##### 🎯 选择查询策略")
@@ -383,13 +346,7 @@ def display_auction_analysis():
     # 执行分析
     if st.session_state.get('run_auction_analysis', False):
         st.markdown("---")
-        run_strategy(
-            query, 
-            selected_date, 
-            market_cap,
-            use_proxy=use_proxy,
-            custom_proxy=st.session_state.get('custom_proxy')
-        )
+        run_strategy(query, selected_date, market_cap)
         st.session_state.run_auction_analysis = False
 
 if __name__ == "__main__":
