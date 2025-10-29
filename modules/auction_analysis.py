@@ -30,8 +30,8 @@ except ImportError:
 
 # 常量配置
 MAX_STOCKS = 100
-MAX_RETRIES = 1
-RETRY_DELAY = 1
+MAX_RETRIES = 3  # 增加重试次数
+RETRY_DELAY = 2  # 增加重试延迟
 
 def safe_format(x, divisor=1, suffix=''):
     """安全格式化数值"""
@@ -47,15 +47,28 @@ def get_strategy_stocks(query, selected_date, max_retries=MAX_RETRIES):
     
     for attempt in range(max_retries):
         try:
-            # 调用 pywencai - 不使用排序参数（可能导致问题）
-            result = pywencai.get(query=query)
+            # 调用 pywencai - 捕获所有可能的异常
+            try:
+                result = pywencai.get(query=query)
+            except AttributeError as e:
+                # pywencai 内部的 AttributeError（通常是网络问题导致返回None）
+                if attempt < max_retries - 1:
+                    time.sleep(RETRY_DELAY)
+                    continue
+                return None, "问财接口调用失败，可能是网络问题或服务暂时不可用"
+            except Exception as e:
+                # 其他 pywencai 内部错误
+                if attempt < max_retries - 1:
+                    time.sleep(RETRY_DELAY)
+                    continue
+                return None, f"问财接口异常: {str(e)}"
             
             # 检查返回值类型
             if result is None:
                 if attempt < max_retries - 1:
                     time.sleep(RETRY_DELAY)
                     continue
-                return None, "pywencai返回空结果，可能是查询条件无效或网络问题"
+                return None, "问财返回空结果，可能是查询条件无效或网络问题"
             
             # 处理不同的返回格式
             df = None
@@ -73,18 +86,18 @@ def get_strategy_stocks(query, selected_date, max_retries=MAX_RETRIES):
                     try:
                         df = pd.DataFrame(result)
                     except Exception:
-                        return None, f"无法解析pywencai返回的字典格式"
+                        return None, "无法解析问财返回的数据格式"
             
             # 情况3: 其他类型
             else:
-                return None, f"pywencai返回了不支持的数据类型: {type(result).__name__}"
+                return None, f"问财返回了不支持的数据类型: {type(result).__name__}"
             
             # 检查DataFrame是否有效
             if df is None or not isinstance(df, pd.DataFrame):
                 if attempt < max_retries - 1:
                     time.sleep(RETRY_DELAY)
                     continue
-                return None, "无法从pywencai获取有效的DataFrame"
+                return None, "无法从问财获取有效的DataFrame"
             
             if df.empty:
                 if attempt < max_retries - 1:
@@ -115,10 +128,11 @@ def get_strategy_stocks(query, selected_date, max_retries=MAX_RETRIES):
             return df[:MAX_STOCKS], None
             
         except Exception as e:
+            # 外层异常捕获
             if attempt < max_retries - 1:
                 time.sleep(RETRY_DELAY)
             else:
-                return None, f"查询失败: {str(e)}"
+                return None, f"处理数据时出错: {str(e)}"
     
     # 所有重试都失败了
     return None, "查询失败，请检查网络连接或稍后重试"
