@@ -191,6 +191,17 @@ def main():
         except Exception as e:
             st.error(f"❌ 每日宜忌功能出现错误: {str(e)}")
         return
+    elif params["function_mode"] == "🎯 Z哥战法选股":
+        # 显示Z哥战法选股界面
+        try:
+            from .zgzf_strategy_bot import display_zgzf_strategy
+            display_zgzf_strategy()
+        except ImportError as e:
+            st.error("❌ Z哥战法选股模块加载失败")
+            st.info(f"错误详情: {e}")
+        except Exception as e:
+            st.error(f"❌ Z哥战法选股功能出现错误: {str(e)}")
+        return
     elif params["function_mode"] == "🎯 突破选股":
         # 显示突破选股界面
         try:
