@@ -191,25 +191,38 @@ def display_zgzf_strategy():
         )
         
         if data_from == "从本地数据":
-            # 从本地CSV加载
-            from .zgzf_data_manager import load_all_local_stocks, get_data_info
+            # 从 AI数据管理 模块的数据目录加载
+            from pathlib import Path
+            import glob
             
-            info = get_data_info()
+            data_dir = Path.home() / "stock_data"
             
-            col1, col2, col3 = st.columns(3)
+            # 统计现有数据
+            if data_dir.exists():
+                csv_files = list(data_dir.glob("*.csv"))
+                stock_count = len(csv_files)
+            else:
+                stock_count = 0
+            
+            col1, col2 = st.columns(2)
             with col1:
-                st.metric("本地股票数", info['count'])
+                st.metric("本地股票数", stock_count)
             with col2:
-                st.metric("数据日期", f"{info['oldest']} ~ {info['newest']}")
-            with col3:
-                st.metric("占用空间", info['total_size'])
+                st.metric("数据路径", str(data_dir))
             
-            if info['count'] == 0:
+            if stock_count == 0:
                 st.warning("⚠️ 本地暂无数据，请先下载")
-                st.info("请前往侧边栏选择 **\"📦 数据管理\"** 下载股票数据")
+                st.info("请前往侧边栏选择 **\"💾 AI数据管理\"** 更新A股全量数据")
+                st.markdown("""
+                **操作步骤：**
+                1. 侧边栏选择 "💾 AI数据管理"
+                2. 点击 "🚀 开始更新" 下载数据
+                3. 等待下载完成（首次约13分钟）
+                4. 返回此处进行批量选股
+                """)
                 return
             
-            st.info(f"将从本地 {info['count']} 只股票中进行筛选")
+            st.success(f"✅ 将从 {stock_count} 只股票中进行筛选")
             
         else:
             # 实时获取配置
@@ -249,17 +262,52 @@ def display_zgzf_strategy():
             stock_data_dict = {}
             
             if data_from == "从本地数据":
-                # 从本地加载
-                from .zgzf_data_manager import load_all_local_stocks
+                # 从 AI数据管理 的数据目录加载
+                from pathlib import Path
+                
+                data_dir = Path.home() / "stock_data"
                 
                 with st.spinner("正在加载本地数据..."):
-                    stock_data_dict = load_all_local_stocks()
+                    stock_data_dict = {}
+                    failed_count = 0
+                    
+                    if data_dir.exists():
+                        csv_files = list(data_dir.glob("*.csv"))
+                        
+                        for csv_file in csv_files:
+                            try:
+                                # 从文件名提取股票代码 (格式: 000001_平安银行.csv)
+                                stock_code = csv_file.stem.split('_')[0]
+                                
+                                # 读取CSV
+                                df = pd.read_csv(csv_file, parse_dates=['date'])
+                                df.set_index('date', inplace=True)
+                                
+                                # 列名映射 (Baostock格式 -> 标准格式)
+                                df.rename(columns={
+                                    'open': 'Open',
+                                    'high': 'High',
+                                    'low': 'Low',
+                                    'close': 'Close',
+                                    'volume': 'Volume'
+                                }, inplace=True)
+                                
+                                # 确保数据足够且有效
+                                if not df.empty and len(df) >= 60:
+                                    stock_data_dict[stock_code] = df
+                                else:
+                                    failed_count += 1
+                            except Exception as e:
+                                failed_count += 1
+                                continue
                 
                 if not stock_data_dict:
                     st.error("❌ 本地数据加载失败或数据不足")
                     return
                 
                 st.success(f"✅ 成功加载 {len(stock_data_dict)} 只股票数据")
+                if failed_count > 0:
+                    st.info(f"ℹ️ {failed_count} 只股票数据不足或无效")
                 
             else:
                 # 实时获取数据
