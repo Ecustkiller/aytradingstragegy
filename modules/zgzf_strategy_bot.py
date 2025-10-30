@@ -182,24 +182,54 @@ def display_zgzf_strategy():
     else:
         st.subheader("🔍 批量选股")
         
-        # 股票池配置
-        col1, col2, col3 = st.columns(3)
+        # 数据来源选择
+        data_from = st.radio(
+            "数据来源",
+            ["从本地数据", "实时获取"],
+            horizontal=True,
+            help="本地数据：速度快，需提前下载\n实时获取：无需下载，但速度较慢"
+        )
         
-        with col1:
-            data_source = st.selectbox("数据源", ["AKShare", "Tushare"], key="batch_data_source")
+        if data_from == "从本地数据":
+            # 从本地CSV加载
+            from .zgzf_data_manager import load_all_local_stocks, get_data_info
+            
+            info = get_data_info()
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("本地股票数", info['count'])
+            with col2:
+                st.metric("数据日期", f"{info['oldest']} ~ {info['newest']}")
+            with col3:
+                st.metric("占用空间", info['total_size'])
+            
+            if info['count'] == 0:
+                st.warning("⚠️ 本地暂无数据，请先下载")
+                st.info("请前往侧边栏选择 **\"📦 数据管理\"** 下载股票数据")
+                return
+            
+            st.info(f"将从本地 {info['count']} 只股票中进行筛选")
+            
+        else:
+            # 实时获取配置
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                data_source = st.selectbox("数据源", ["AKShare", "Tushare"], key="batch_data_source")
+            
+            with col2:
+                stock_pool_type = st.selectbox(
+                    "股票池",
+                    ["沪深300", "中证500", "上证50", "自定义列表"],
+                    help="选择要筛选的股票池"
+                )
+            
+            with col3:
+                max_stocks = st.number_input("分析股票数", min_value=10, max_value=500, value=100, step=10)
         
-        with col2:
-            stock_pool_type = st.selectbox(
-                "股票池",
-                ["沪深300", "中证500", "上证50", "自定义列表"],
-                help="选择要筛选的股票池"
-            )
-        
-        with col3:
-            max_stocks = st.number_input("分析股票数", min_value=10, max_value=500, value=100, step=10)
-        
-        # 自定义股票列表
-        if stock_pool_type == "自定义列表":
+        # 自定义股票列表（仅实时获取模式）
+        if data_from == "实时获取" and stock_pool_type == "自定义列表":
             stock_list_input = st.text_area(
                 "输入股票代码（每行一个，支持逗号分隔）",
                 value="600519\n000858\n601318",
@@ -207,90 +237,106 @@ def display_zgzf_strategy():
                 help="输入股票代码，可以每行一个，或用逗号分隔"
             )
         
-        # 时间范围
-        col1, col2 = st.columns(2)
-        with col1:
-            days = st.number_input("分析天数", min_value=60, max_value=500, value=250)
-        with col2:
-            st.info(f"将获取最近 {days} 天的数据进行分析")
+        # 时间范围（仅实时获取模式）
+        if data_from == "实时获取":
+            col1, col2 = st.columns(2)
+            with col1:
+                days = st.number_input("分析天数", min_value=60, max_value=500, value=250)
+            with col2:
+                st.info(f"将获取最近 {days} 天的数据进行分析")
         
         if st.button("🚀 开始批量选股", type="primary", use_container_width=True):
-            # 获取股票池
-            stock_list = []
-            
-            if stock_pool_type == "自定义列表":
-                # 解析用户输入
-                raw_input = stock_list_input.replace(',', '\n')
-                stock_list = [s.strip() for s in raw_input.split('\n') if s.strip()]
-            else:
-                # 使用AKShare获取指数成分股
-                try:
-                    import akshare as ak
-                    
-                    with st.spinner(f"正在获取{stock_pool_type}成分股..."):
-                        if stock_pool_type == "沪深300":
-                            df_index = ak.index_stock_cons_csindex(symbol="000300")
-                        elif stock_pool_type == "中证500":
-                            df_index = ak.index_stock_cons_csindex(symbol="000905")
-                        elif stock_pool_type == "上证50":
-                            df_index = ak.index_stock_cons_csindex(symbol="000016")
-                        
-                        if df_index is not None and not df_index.empty:
-                            stock_list = df_index['成分券代码'].tolist()[:max_stocks]
-                            st.success(f"✅ 获取到 {len(stock_list)} 只成分股")
-                        else:
-                            st.error("获取指数成分股失败")
-                            return
-                except Exception as e:
-                    st.error(f"获取成分股出错: {e}")
-                    st.info("💡 建议切换到'自定义列表'模式手动输入股票代码")
-                    return
-            
-            if not stock_list:
-                st.warning("股票列表为空，请检查输入")
-                return
-            
-            st.info(f"📊 准备分析 {len(stock_list)} 只股票...")
-            
-            # 批量获取数据
-            end_date = datetime.now()
-            start_date = end_date - timedelta(days=days)
-            
             stock_data_dict = {}
-            failed_stocks = []
             
-            progress_bar = st.progress(0)
-            status_text = st.empty()
-            
-            for idx, code in enumerate(stock_list):
-                status_text.text(f"正在获取数据: {code} ({idx+1}/{len(stock_list)})")
-                progress_bar.progress((idx + 1) / len(stock_list))
+            if data_from == "从本地数据":
+                # 从本地加载
+                from .zgzf_data_manager import load_all_local_stocks
                 
-                try:
-                    df = get_stock_data(
-                        symbol=code,
-                        start=start_date.strftime("%Y-%m-%d"),
-                        end=end_date.strftime("%Y-%m-%d"),
-                        data_source=data_source,
-                        period_type='daily'
-                    )
+                with st.spinner("正在加载本地数据..."):
+                    stock_data_dict = load_all_local_stocks()
+                
+                if not stock_data_dict:
+                    st.error("❌ 本地数据加载失败或数据不足")
+                    return
+                
+                st.success(f"✅ 成功加载 {len(stock_data_dict)} 只股票数据")
+                
+            else:
+                # 实时获取数据
+                stock_list = []
+                
+                if stock_pool_type == "自定义列表":
+                    # 解析用户输入
+                    raw_input = stock_list_input.replace(',', '\n')
+                    stock_list = [s.strip() for s in raw_input.split('\n') if s.strip()]
+                else:
+                    # 使用AKShare获取指数成分股
+                    try:
+                        import akshare as ak
+                        
+                        with st.spinner(f"正在获取{stock_pool_type}成分股..."):
+                            if stock_pool_type == "沪深300":
+                                df_index = ak.index_stock_cons_csindex(symbol="000300")
+                            elif stock_pool_type == "中证500":
+                                df_index = ak.index_stock_cons_csindex(symbol="000905")
+                            elif stock_pool_type == "上证50":
+                                df_index = ak.index_stock_cons_csindex(symbol="000016")
+                            
+                            if df_index is not None and not df_index.empty:
+                                stock_list = df_index['成分券代码'].tolist()[:max_stocks]
+                                st.success(f"✅ 获取到 {len(stock_list)} 只成分股")
+                            else:
+                                st.error("获取指数成分股失败")
+                                return
+                    except Exception as e:
+                        st.error(f"获取成分股出错: {e}")
+                        st.info("💡 建议切换到'自定义列表'模式手动输入股票代码")
+                        return
+                
+                if not stock_list:
+                    st.warning("股票列表为空，请检查输入")
+                    return
+                
+                st.info(f"📊 准备分析 {len(stock_list)} 只股票...")
+                
+                # 批量获取数据
+                end_date = datetime.now()
+                start_date = end_date - timedelta(days=days)
+                
+                failed_stocks = []
+                
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                
+                for idx, code in enumerate(stock_list):
+                    status_text.text(f"正在获取数据: {code} ({idx+1}/{len(stock_list)})")
+                    progress_bar.progress((idx + 1) / len(stock_list))
                     
-                    if df is not None and not df.empty and len(df) >= 60:
-                        stock_data_dict[code] = df
-                    else:
+                    try:
+                        df = get_stock_data(
+                            symbol=code,
+                            start=start_date.strftime("%Y-%m-%d"),
+                            end=end_date.strftime("%Y-%m-%d"),
+                            data_source=data_source,
+                            period_type='daily'
+                        )
+                        
+                        if df is not None and not df.empty and len(df) >= 60:
+                            stock_data_dict[code] = df
+                        else:
+                            failed_stocks.append(code)
+                    except Exception as e:
                         failed_stocks.append(code)
-                except Exception as e:
-                    failed_stocks.append(code)
-                    continue
-            
-            progress_bar.empty()
-            status_text.empty()
-            
-            if failed_stocks:
-                with st.expander(f"⚠️ {len(failed_stocks)} 只股票数据获取失败"):
-                    st.write(", ".join(failed_stocks))
-            
-            st.success(f"✅ 成功获取 {len(stock_data_dict)} 只股票数据")
+                        continue
+                
+                progress_bar.empty()
+                status_text.empty()
+                
+                if failed_stocks:
+                    with st.expander(f"⚠️ {len(failed_stocks)} 只股票数据获取失败"):
+                        st.write(", ".join(failed_stocks))
+                
+                st.success(f"✅ 成功获取 {len(stock_data_dict)} 只股票数据")
             
             # 运行策略筛选
             if stock_data_dict:

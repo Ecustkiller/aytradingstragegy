@@ -202,6 +202,17 @@ def main():
         except Exception as e:
             st.error(f"❌ Z哥战法选股功能出现错误: {str(e)}")
         return
+    elif params["function_mode"] == "📦 数据管理":
+        # 显示数据管理界面
+        try:
+            from .zgzf_data_manager import display_data_management
+            display_data_management()
+        except ImportError as e:
+            st.error("❌ 数据管理模块加载失败")
+            st.info(f"错误详情: {e}")
+        except Exception as e:
+            st.error(f"❌ 数据管理功能出现错误: {str(e)}")
+        return
     elif params["function_mode"] == "🎯 突破选股":
         # 显示突破选股界面
         try:
