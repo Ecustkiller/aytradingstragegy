@@ -80,34 +80,26 @@ except Exception as e:
 
 def get_latest_trading_date():
     """获取最近一个交易日 (使用Tushare)"""
-    import signal
-    
-    def timeout_handler(signum, frame):
-        raise TimeoutError("Tushare API 调用超时")
-    
     try:
-        # 设置10秒超时
-        signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(10)
-        
-        # 使用 Tushare 获取交易日历
+        # 使用 Tushare 获取交易日历（直接调用，不设置超时）
         today = datetime.now().strftime('%Y%m%d')
         logger.info(f"🔍 正在获取交易日历（截止{today}）...")
-        df = pro.trade_cal(exchange='SSE', end_date=today, is_open='1')
+        print(f"🔍 正在获取交易日历（截止{today}）...")
+        sys.stdout.flush()
         
-        signal.alarm(0)  # 取消超时
+        df = pro.trade_cal(exchange='SSE', end_date=today, is_open='1')
         
         if not df.empty:
             latest_date = df.iloc[0]['cal_date']
             formatted_date = f"{latest_date[:4]}-{latest_date[4:6]}-{latest_date[6:]}"
             logger.info(f"✅ 获取到最新交易日: {formatted_date}")
+            print(f"✅ 获取到最新交易日: {formatted_date}")
+            sys.stdout.flush()
             return formatted_date
-    except TimeoutError as e:
-        signal.alarm(0)
-        logger.warning(f"⚠️ {e}，使用备用方法")
     except Exception as e:
-        signal.alarm(0)
         logger.warning(f"⚠️ 使用Tushare获取交易日失败: {e}，使用备用方法")
+        print(f"⚠️ Tushare获取失败: {e}")
+        sys.stdout.flush()
     
     # 备用方法：简单推算
     today = datetime.now()
@@ -116,6 +108,8 @@ def get_latest_trading_date():
         if check_date.weekday() < 5:  # 0-4 for Monday-Friday
             formatted_date = check_date.strftime('%Y-%m-%d')
             logger.info(f"📅 使用备用方法推算交易日: {formatted_date}")
+            print(f"📅 使用备用方法推算交易日: {formatted_date}")
+            sys.stdout.flush()
             return formatted_date
     return None
 
