@@ -7,11 +7,11 @@
 2. 增量更新所有股票的最新数据（A股全量）
 3. 支持企业微信推送通知
 
-数据来源：baostock
+数据来源：Tushare
 适用于：aitrader_v3.3项目
 """
 
-import baostock as bs
+import tushare as ts
 import pandas as pd
 import os
 import sys
@@ -65,28 +65,34 @@ else:
         os.makedirs(STOCK_DATA_DIR, exist_ok=True)
         logger.info(f"✅ 创建并使用项目目录: {STOCK_DATA_DIR}")
 
-ADJUST_FLAG = "2"  # 前复权
+ADJUST_FLAG = "qfq"  # 前复权 (Tushare)
 WEBHOOK_URL = ""  # 企业微信Webhook地址（可选）
 
-def login_baostock():
-    """登录baostock"""
-    lg = bs.login()
-    if lg.error_code != '0':
-        logger.error(f"登录失败: {lg.error_msg}")
-        sys.exit(1)
-    else:
-        logger.info("登录baostock成功")
-        return lg
-
-def logout_baostock():
-    """登出baostock"""
-    bs.logout()
-    logger.info("登出baostock成功")
+# 初始化 Tushare API
+try:
+    # 从环境变量或配置文件读取 Token
+    tushare_token = os.environ.get('TUSHARE_TOKEN', '5ba59a19b959a1a7e32ca2a59e60ee0d4dafc9cea17feabb0c61adf4')
+    pro = ts.pro_api(tushare_token)
+    logger.info("✅ Tushare API 初始化成功")
+except Exception as e:
+    logger.error(f"❌ Tushare API 初始化失败: {e}")
+    sys.exit(1)
 
 def get_latest_trading_date():
-    """获取最近一个交易日"""
+    """获取最近一个交易日 (使用Tushare)"""
+    try:
+        # 使用 Tushare 获取交易日历
+        today = datetime.now().strftime('%Y%m%d')
+        df = pro.trade_cal(exchange='SSE', end_date=today, is_open='1')
+        if not df.empty:
+            latest_date = df.iloc[0]['cal_date']
+            return f"{latest_date[:4]}-{latest_date[4:6]}-{latest_date[6:]}"
+    except Exception as e:
+        logger.warning(f"使用Tushare获取交易日失败: {e}，使用备用方法")
+    
+    # 备用方法：简单推算
     today = datetime.now()
-    for i in range(7):  # 往前推7天，找到最近的交易日
+    for i in range(7):
         check_date = today - timedelta(days=i)
         if check_date.weekday() < 5:  # 0-4 for Monday-Friday
             return check_date.strftime('%Y-%m-%d')
@@ -112,11 +118,12 @@ def send_wecom_notification(message):
         logger.error(f"企业微信通知失败: {e}")
         return False
 
-def update_stock_data_incremental(lg, stock_code_full, stock_name, latest_trading_date):
-    """增量更新单只股票数据"""
+def update_stock_data_incremental(ts_code, stock_name, latest_trading_date):
+    """增量更新单只股票数据 (使用Tushare)"""
     # 清理文件名中的非法字符
     file_name_sanitized = re.sub(r'[\\/:*?\"<>|]', '', stock_name)
-    file_path = os.path.join(STOCK_DATA_DIR, f"{stock_code_full.split('.')[-1]}_{file_name_sanitized}.csv")
+    stock_id = ts_code.split('.')[0]
+    file_path = os.path.join(STOCK_DATA_DIR, f"{stock_id}_{file_name_sanitized}.csv")
 
     if not os.path.exists(file_path):
         logger.warning(f"文件 {file_path} 不存在，跳过更新。")
@@ -125,56 +132,51 @@ def update_stock_data_incremental(lg, stock_code_full, stock_name, latest_tradin
     try:
         # 读取现有数据
         existing_df = pd.read_csv(file_path)
-        if 'date' not in existing_df.columns:
-            logger.warning(f"文件 {file_path} 缺少 'date' 列，跳过更新。")
+        if 'date' not in existing_df.columns and 'trade_date' not in existing_df.columns:
+            logger.warning(f"文件 {file_path} 缺少日期列，跳过更新。")
             return 0
 
-        existing_df['date'] = pd.to_datetime(existing_df['date'])
-        last_local_date = existing_df['date'].max().strftime('%Y-%m-%d')
+        # 统一日期列名
+        date_col = 'trade_date' if 'trade_date' in existing_df.columns else 'date'
+        existing_df[date_col] = pd.to_datetime(existing_df[date_col], format='%Y%m%d', errors='coerce')
+        last_local_date = existing_df[date_col].max()
 
         # 如果本地数据已是最新，跳过
-        if last_local_date >= latest_trading_date:
+        latest_date_dt = datetime.strptime(latest_trading_date, '%Y-%m-%d')
+        if pd.notna(last_local_date) and last_local_date >= latest_date_dt:
             return 0
 
         # 查询起始日期为本地最后日期的下一天
-        start_date_to_query = (datetime.strptime(last_local_date, '%Y-%m-%d') + timedelta(days=1)).strftime('%Y-%m-%d')
+        start_date_to_query = (last_local_date + timedelta(days=1)).strftime('%Y%m%d')
+        end_date_query = latest_trading_date.replace('-', '')
         
-        # 查询新数据
-        rs = bs.query_history_k_data_plus(
-            stock_code_full,
-            "date,code,open,high,low,close,preclose,volume,amount,adjustflag,turn,tradestatus,pctChg,isST",
+        # 使用Tushare查询新数据
+        new_df = pro.daily(
+            ts_code=ts_code,
             start_date=start_date_to_query,
-            end_date=latest_trading_date,
-            frequency="d",
-            adjustflag=ADJUST_FLAG
+            end_date=end_date_query,
+            adj=ADJUST_FLAG
         )
 
-        data_list = []
-        while (rs.error_code == '0') & rs.next():
-            data_list.append(rs.get_row_data())
-
-        if data_list:
-            new_df = pd.DataFrame(data_list, columns=rs.fields)
-            new_df['date'] = pd.to_datetime(new_df['date'])
-            
+        if new_df is not None and not new_df.empty:
             # 合并并去重
-            updated_df = pd.concat([existing_df, new_df]).drop_duplicates(subset=['date']).sort_values(by='date')
+            updated_df = pd.concat([existing_df, new_df]).drop_duplicates(subset=['trade_date']).sort_values(by='trade_date')
             updated_df.to_csv(file_path, index=False)
             
-            logger.info(f"{stock_code_full} {stock_name} 新增 {len(new_df)} 条记录")
+            logger.info(f"{ts_code} {stock_name} 新增 {len(new_df)} 条记录")
             return len(new_df)
         else:
             return 0
             
     except Exception as e:
-        logger.error(f"更新股票 {stock_code_full} 失败: {e}")
+        logger.error(f"更新股票 {ts_code} 失败: {e}")
         return 0
 
 def main():
     """主函数"""
     start_time = time.time()
     logger.info("=" * 60)
-    logger.info("开始执行每日股票数据增量更新任务")
+    logger.info("开始执行每日股票数据增量更新任务 (使用Tushare)")
     logger.info("=" * 60)
     
     # 确保数据目录存在
@@ -183,12 +185,10 @@ def main():
         send_wecom_notification(f"❌ 股票数据更新失败：数据目录不存在\n时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         return
 
-    lg = login_baostock()
     latest_trading_date = get_latest_trading_date()
     
     if not latest_trading_date:
         logger.error("无法获取最新交易日，退出数据更新。")
-        logout_baostock()
         send_wecom_notification(f"❌ 股票数据更新失败：无法获取最新交易日\n时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         return
 
@@ -209,13 +209,13 @@ def main():
             # 从文件名解析股票代码
             stock_id = file_name.split('_')[0]
             
-            # 根据股票代码确定市场
+            # 根据股票代码确定市场（Tushare格式：代码.市场）
             if stock_id.startswith('6'):
-                stock_code_full = f'sh.{stock_id}'
+                ts_code = f'{stock_id}.SH'
             elif stock_id.startswith(('0', '3')):
-                stock_code_full = f'sz.{stock_id}'
+                ts_code = f'{stock_id}.SZ'
             elif stock_id.startswith(('8', '4')):  # 北交所
-                stock_code_full = f'bj.{stock_id}'
+                ts_code = f'{stock_id}.BJ'
             else:
                 logger.warning(f"未知市场代码: {stock_id}")
                 continue
@@ -230,13 +230,16 @@ def main():
                 logger.info(f"[{progress:.1f}%] 进度: {processed_count}/{total_files}, 已更新: {updated_count}, 预计剩余: {eta/60:.1f}分钟")
             
             # 更新数据
-            added_rows = update_stock_data_incremental(lg, stock_code_full, stock_name, latest_trading_date)
+            added_rows = update_stock_data_incremental(ts_code, stock_name, latest_trading_date)
             if added_rows > 0:
                 updated_count += 1
             
-            # 每更新200只股票休息一下
+            # Tushare API限流：每分钟200次
             if processed_count % 200 == 0:
-                time.sleep(1)
+                logger.info("达到API调用限制，休息60秒...")
+                time.sleep(60)
+            else:
+                time.sleep(0.3)  # 每次请求间隔0.3秒
                 
         except Exception as e:
             error_count += 1
@@ -254,8 +257,6 @@ def main():
     logger.info(f"错误数量: {error_count}")
     logger.info(f"总耗时: {duration:.2f} 秒 ({duration/60:.1f} 分钟)")
     logger.info("=" * 60)
-    
-    logout_baostock()
     
     # 发送企业微信通知
     if updated_count > 0 or error_count > 0:
