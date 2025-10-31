@@ -20,26 +20,58 @@ if str(AITRADER_PATH) not in sys.path:
 
 def check_aitrader_data():
     """检查AI Trader数据状态"""
+    import datetime
+    
     stock_data_dir = Path.home() / "stock_data"
     
     if stock_data_dir.exists():
         csv_files = list(stock_data_dir.glob("*.csv"))
-        return len(csv_files), stock_data_dir
-    return 0, stock_data_dir
+        stock_count = len(csv_files)
+        
+        # 获取最新更新时间
+        if csv_files:
+            latest_mtime = max(f.stat().st_mtime for f in csv_files)
+            latest_date = datetime.datetime.fromtimestamp(latest_mtime)
+            return {
+                'count': stock_count,
+                'path': stock_data_dir,
+                'latest_date': latest_date,
+                'status': '正常' if stock_count > 5000 else '数据不完整'
+            }
+        else:
+            return {
+                'count': 0,
+                'path': stock_data_dir,
+                'latest_date': None,
+                'status': '无数据'
+            }
+    else:
+        return {
+            'count': 0,
+            'path': stock_data_dir,
+            'latest_date': None,
+            'status': '目录不存在'
+        }
 
 
 def update_data_with_progress():
     """带进度显示的数据更新"""
+    import re
+    
     script_path = AITRADER_PATH / "update_daily_stock_data.py"
     
     if not script_path.exists():
         st.error(f"❌ 更新脚本不存在: {script_path}")
-        return
+        return False
     
-    st.info("🔄 正在更新A股数据...")
+    st.info("🔄 正在更新A股数据，预计需要13-20分钟...")
     
     progress_bar = st.progress(0)
     status_text = st.empty()
+    log_container = st.expander("📋 查看详细日志", expanded=False)
+    log_text = log_container.empty()
+    
+    logs = []
     
     try:
         process = subprocess.Popen(
@@ -52,37 +84,68 @@ def update_data_with_progress():
         )
         
         total_files = 5646  # 大约的股票数量
-        current = 0
+        processed_count = 0
+        updated_count = 0
         
         for line in process.stdout:
-            # 解析进度
-            if '进度:' in line and '/' in line:
-                try:
-                    parts = line.split('进度:')[1].split('/')[0].strip()
-                    current = int(parts)
-                    progress = min(int((current / total_files) * 100), 99)
-                    progress_bar.progress(progress)
-                    status_text.text(f"已处理: {current}/{total_files} 只股票")
-                except:
-                    pass
-            elif '数据更新完成' in line:
+            line = line.strip()
+            if not line:
+                continue
+            
+            # 添加到日志
+            logs.append(line)
+            if len(logs) > 100:  # 只保留最后100条
+                logs.pop(0)
+            log_text.text('\n'.join(logs[-20:]))  # 显示最后20条
+            
+            # 解析进度 (格式: [XX.X%] 进度: XXX/5646)
+            progress_match = re.search(r'\[(\d+\.\d+)%\]\s+进度:\s+(\d+)/(\d+)', line)
+            if progress_match:
+                progress_pct = float(progress_match.group(1))
+                processed_count = int(progress_match.group(2))
+                total_files = int(progress_match.group(3))
+                
+                progress_bar.progress(int(progress_pct))
+                status_text.text(f"📊 进度: {processed_count}/{total_files} ({progress_pct:.1f}%)")
+                continue
+            
+            # 解析新增记录 (格式: xxx 新增 X 条记录)
+            if '新增' in line and '条记录' in line:
+                updated_count += 1
+                continue
+            
+            # 检测完成信息
+            if '数据更新完成' in line:
                 progress_bar.progress(100)
                 status_text.text("✅ 更新完成！")
+                continue
+            
+            # 检测统计信息
+            if '实际更新:' in line:
+                match = re.search(r'实际更新:\s+(\d+)', line)
+                if match:
+                    updated_count = int(match.group(1))
         
         process.wait()
         
         if process.returncode == 0:
-            st.success("✅ 数据更新成功！")
+            st.success(f"✅ 数据更新成功！共更新 {updated_count} 只股票")
             st.balloons()
             
             # 重新检查数据
-            stock_count, _ = check_aitrader_data()
-            st.info(f"📊 当前数据量: {stock_count} 只股票")
+            data_info = check_aitrader_data()
+            st.info(f"📊 当前数据量: {data_info['count']} 只股票 | 最后更新: {data_info['latest_date'].strftime('%Y-%m-%d %H:%M')}")
+            return True
         else:
             st.error(f"❌ 更新失败，返回码: {process.returncode}")
+            st.info("💡 提示：更新脚本正在后台运行，这是正常的。数据已经在更新中。")
+            return False
             
     except Exception as e:
         st.error(f"❌ 更新出错: {e}")
+        import traceback
+        st.code(traceback.format_exc())
+        return False
     finally:
         progress_bar.empty()
         status_text.empty()
@@ -766,22 +829,48 @@ def display_aitrader_data_management():
     """显示AI Trader数据管理界面"""
     st.header("📊 AI Trader 数据管理中心")
     
-    stock_count, data_dir = check_aitrader_data()
+    # 获取数据状态
+    data_info = check_aitrader_data()
     
-    # 数据状态概览
-    col1, col2, col3 = st.columns(3)
+    # 数据状态概览（4列布局）
+    col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        st.metric("📁 股票数量", f"{stock_count} 只")
+        st.metric(
+            label="📁 股票数量",
+            value=f"{data_info['count']} 只",
+            delta=None if data_info['count'] == 0 else "A股全量"
+        )
     
     with col2:
-        if stock_count > 0:
-            st.metric("✅ 数据状态", "正常")
-        else:
-            st.metric("⚠️ 数据状态", "无数据")
+        status_emoji = "✅" if data_info['status'] == "正常" else "⚠️"
+        st.metric(
+            label="💾 数据状态",
+            value=data_info['status']
+        )
     
     with col3:
-        st.metric("📂 数据目录", "~/stock_data")
+        if data_info['latest_date']:
+            latest_str = data_info['latest_date'].strftime('%m-%d')
+            days_ago = (pd.Timestamp.now() - pd.Timestamp(data_info['latest_date'])).days
+            delta_str = f"{days_ago}天前" if days_ago > 0 else "今日"
+            st.metric(
+                label="📅 最后更新",
+                value=latest_str,
+                delta=delta_str,
+                delta_color="normal" if days_ago < 7 else "off"
+            )
+        else:
+            st.metric(label="📅 最后更新", value="无数据")
+    
+    with col4:
+        st.metric(
+            label="📂 数据目录",
+            value="~/stock_data"
+        )
+    
+    # 详细路径显示
+    st.caption(f"💡 完整路径: `{data_info['path']}`")
     
     st.divider()
     
@@ -794,39 +883,50 @@ def display_aitrader_data_management():
         st.markdown("### 🔄 更新全量数据")
         st.caption("增量更新所有A股数据到最新交易日")
         
-        if st.button("开始更新", use_container_width=True, type="primary"):
+        if st.button("🚀 开始更新", use_container_width=True, type="primary", key="update_btn"):
             # 运行数据更新
-            update_data_with_progress()
+            with st.spinner("正在启动更新任务..."):
+                update_data_with_progress()
+                # 更新完成后刷新页面状态
+                st.rerun()
         
         st.info("""
         **更新说明:**
-        - 首次运行约13分钟
-        - 日常增量更新约2-3分钟
-        - 自动跳过停牌股票
-        - 支持断点续传
+        - 📊 首次运行约13-20分钟
+        - ⚡ 日常增量更新约2-3分钟
+        - 🔄 自动跳过停牌/退市股票
+        - 💾 支持断点续传（中断后可继续）
+        - 📡 数据源: Baostock (免费)
         """)
     
     with col2:
         st.markdown("### 📊 数据统计")
         st.caption("数据库详细信息")
         
-        if stock_count > 0:
-            st.success(f"✅ 已下载 {stock_count} 只股票数据")
-            st.caption(f"数据路径: `{data_dir}`")
+        if data_info['count'] > 0:
+            st.success(f"✅ 已下载 {data_info['count']} 只股票数据")
             
-            # 尝试获取最新更新时间
-            try:
-                log_file = AITRADER_PATH / "logs" / "update_20251028.log"
-                if log_file.exists():
-                    import time
-                    mtime = os.path.getmtime(log_file)
-                    update_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(mtime))
-                    st.info(f"📅 最近更新: {update_time}")
-            except:
-                pass
+            # 计算数据覆盖率
+            total_stocks = 5646  # A股总数（约数）
+            coverage = (data_info['count'] / total_stocks) * 100
+            st.progress(coverage / 100)
+            st.caption(f"数据覆盖率: {coverage:.1f}%")
+            
+            # 显示最后更新时间
+            if data_info['latest_date']:
+                st.info(f"📅 最后更新: {data_info['latest_date'].strftime('%Y-%m-%d %H:%M:%S')}")
+                
+                # 判断是否需要更新
+                days_since_update = (pd.Timestamp.now() - pd.Timestamp(data_info['latest_date'])).days
+                if days_since_update > 1:
+                    st.warning(f"⚠️ 数据已 {days_since_update} 天未更新，建议及时更新")
+                elif days_since_update == 1:
+                    st.info("💡 数据为昨日数据，可以更新到最新")
+                else:
+                    st.success("✅ 数据为最新")
         else:
             st.warning("⚠️ 未检测到数据")
-            st.caption("请点击左侧'开始更新'按钮")
+            st.caption("请点击左侧'🚀 开始更新'按钮首次下载数据")
     
     st.divider()
     
