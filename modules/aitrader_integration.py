@@ -886,6 +886,57 @@ def display_aitrader_data_management():
     """显示AI Trader数据管理界面"""
     st.header("📊 AI Trader 数据管理中心")
     
+    # 环境诊断（可折叠）
+    with st.expander("🔧 环境诊断", expanded=False):
+        st.subheader("系统环境信息")
+        
+        import sys
+        import platform
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.write("**Python版本**:", sys.version.split()[0])
+            st.write("**操作系统**:", platform.platform())
+            st.write("**工作目录**:", os.getcwd())
+        
+        with col2:
+            data_dir = get_stock_data_dir()
+            st.write("**数据目录**:", str(data_dir))
+            st.write("**目录存在**:", "✅" if data_dir.exists() else "❌")
+            if data_dir.exists():
+                st.write("**目录可写**:", "✅" if os.access(data_dir, os.W_OK) else "❌")
+            else:
+                st.write("**目录可写**:", "❓ (目录不存在)")
+        
+        script_path = AITRADER_PATH / "update_daily_stock_data.py"
+        st.write("**脚本路径**:", str(script_path))
+        st.write("**脚本存在**:", "✅" if script_path.exists() else "❌")
+        
+        # 测试subprocess
+        if st.button("🧪 测试Python执行"):
+            try:
+                result = subprocess.run(
+                    ['python3', '--version'],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                st.success(f"✅ Python可执行: {result.stdout.strip()}")
+                
+                # 测试baostock
+                result2 = subprocess.run(
+                    ['python3', '-c', 'import baostock; print("baostock OK")'],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                if result2.returncode == 0:
+                    st.success(f"✅ baostock可用: {result2.stdout.strip()}")
+                else:
+                    st.error(f"❌ baostock不可用: {result2.stderr}")
+            except Exception as e:
+                st.error(f"❌ 测试失败: {e}")
+    
     # 获取数据状态
     data_info = check_aitrader_data()
     
