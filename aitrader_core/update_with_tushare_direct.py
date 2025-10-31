@@ -16,16 +16,17 @@ TUSHARE_TOKEN = os.environ.get('TUSHARE_TOKEN', 'ad56243b601d82fd5c4aaf04b72d4d9
 
 def get_stock_data_dir():
     """获取数据目录"""
-    # 优先使用环境变量
+    # 1. 优先使用环境变量
     if 'STOCK_DATA_DIR' in os.environ:
         data_dir = Path(os.environ['STOCK_DATA_DIR'])
-    # 本地环境
-    elif Path.home().exists():
-        data_dir = Path.home() / "stock_data"
-    # Streamlit Cloud环境
-    else:
+    # 2. 检测 Streamlit Cloud 环境 (通过检查项目路径特征)
+    elif '/mount/src/' in str(Path(__file__).absolute()):
+        # Streamlit Cloud 环境：使用项目内的 data 目录
         project_root = Path(__file__).parent.parent
         data_dir = project_root / "data" / "stock_data"
+    # 3. 本地环境：使用用户主目录
+    else:
+        data_dir = Path.home() / "stock_data"
     
     data_dir.mkdir(parents=True, exist_ok=True)
     return data_dir
