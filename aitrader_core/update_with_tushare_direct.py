@@ -97,22 +97,41 @@ def update_data_direct(progress_callback=None, log_callback=None):
                 try:
                     existing_df = pd.read_csv(csv_file)
                     if not existing_df.empty and 'trade_date' in existing_df.columns:
-                        # 确保日期格式一致（YYYYMMDD字符串）
+                        # 获取最后日期并统一转换为 YYYYMMDD 格式字符串
                         last_date_raw = existing_df['trade_date'].max()
-                        # 统一转换为字符串格式 YYYYMMDD
-                        if isinstance(last_date_raw, (int, float)):
-                            last_date = str(int(last_date_raw))
-                        else:
-                            last_date = str(last_date_raw).replace('-', '')[:8]
                         
-                        # 如果已是最新，跳过
-                        if last_date >= end_date:
-                            skip_count += 1
-                            if skip_count % 100 == 0:
-                                log(f"⏩ 已跳过 {skip_count} 只最新股票")
-                            continue
-                        start_date_incremental = last_date
+                        # 统一转换为 YYYYMMDD 字符串格式
+                        try:
+                            if pd.isna(last_date_raw):
+                                # 如果是 NaN，跳过此文件
+                                pass
+                            elif isinstance(last_date_raw, (int, float)):
+                                # 如果是数字，转为字符串
+                                last_date = str(int(last_date_raw))
+                            elif isinstance(last_date_raw, str):
+                                # 如果是字符串，清理横杠和空格
+                                last_date = last_date_raw.replace('-', '').replace(' ', '').strip()[:8]
+                            else:
+                                # 其他类型（如datetime），转为字符串后清理
+                                last_date = str(last_date_raw).replace('-', '').replace(' ', '').strip()[:8]
+                            
+                            # 确保 end_date 也是纯字符串格式
+                            end_date_str = str(end_date).replace('-', '').strip()
+                            
+                            # 验证格式是否正确（8位数字）
+                            if len(last_date) == 8 and last_date.isdigit():
+                                # 如果已是最新，跳过
+                                if last_date >= end_date_str:
+                                    skip_count += 1
+                                    if skip_count % 100 == 0:
+                                        log(f"⏩ 已跳过 {skip_count} 只最新股票")
+                                    continue
+                                start_date_incremental = last_date
+                        except Exception:
+                            # 日期解析失败，重新下载全部数据
+                            pass
                 except Exception:
+                    # 文件读取失败，重新下载全部数据
                     pass
             
             # 下载数据
