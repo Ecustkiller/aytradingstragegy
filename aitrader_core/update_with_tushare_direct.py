@@ -148,8 +148,14 @@ def update_data_direct(progress_callback=None, log_callback=None):
                     if csv_file.exists():
                         existing_df = pd.read_csv(csv_file)
                         df = pd.concat([existing_df, df], ignore_index=True)
+                        
+                        # 确保 trade_date 列为统一格式（字符串）再去重和排序
+                        df['trade_date'] = df['trade_date'].astype(str).str.replace('-', '').str.strip()
                         df = df.drop_duplicates(subset=['trade_date'], keep='last')
                         df = df.sort_values('trade_date')
+                    else:
+                        # 新文件也需要格式化日期
+                        df['trade_date'] = df['trade_date'].astype(str).str.replace('-', '').str.strip()
                     
                     # 保存
                     df.to_csv(csv_file, index=False, encoding='utf-8-sig')
