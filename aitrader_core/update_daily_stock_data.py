@@ -80,22 +80,43 @@ except Exception as e:
 
 def get_latest_trading_date():
     """获取最近一个交易日 (使用Tushare)"""
+    import signal
+    
+    def timeout_handler(signum, frame):
+        raise TimeoutError("Tushare API 调用超时")
+    
     try:
+        # 设置10秒超时
+        signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(10)
+        
         # 使用 Tushare 获取交易日历
         today = datetime.now().strftime('%Y%m%d')
+        logger.info(f"🔍 正在获取交易日历（截止{today}）...")
         df = pro.trade_cal(exchange='SSE', end_date=today, is_open='1')
+        
+        signal.alarm(0)  # 取消超时
+        
         if not df.empty:
             latest_date = df.iloc[0]['cal_date']
-            return f"{latest_date[:4]}-{latest_date[4:6]}-{latest_date[6:]}"
+            formatted_date = f"{latest_date[:4]}-{latest_date[4:6]}-{latest_date[6:]}"
+            logger.info(f"✅ 获取到最新交易日: {formatted_date}")
+            return formatted_date
+    except TimeoutError as e:
+        signal.alarm(0)
+        logger.warning(f"⚠️ {e}，使用备用方法")
     except Exception as e:
-        logger.warning(f"使用Tushare获取交易日失败: {e}，使用备用方法")
+        signal.alarm(0)
+        logger.warning(f"⚠️ 使用Tushare获取交易日失败: {e}，使用备用方法")
     
     # 备用方法：简单推算
     today = datetime.now()
     for i in range(7):
         check_date = today - timedelta(days=i)
         if check_date.weekday() < 5:  # 0-4 for Monday-Friday
-            return check_date.strftime('%Y-%m-%d')
+            formatted_date = check_date.strftime('%Y-%m-%d')
+            logger.info(f"📅 使用备用方法推算交易日: {formatted_date}")
+            return formatted_date
     return None
 
 def send_wecom_notification(message):
@@ -175,6 +196,15 @@ def update_stock_data_incremental(ts_code, stock_name, latest_trading_date):
 def main():
     """主函数"""
     start_time = time.time()
+    
+    # 立即输出启动信息（确保用户能看到）
+    print("=" * 60)
+    print("🚀 A股数据更新程序启动中...")
+    print(f"📂 数据目录: {STOCK_DATA_DIR}")
+    print(f"📅 当前时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print("=" * 60)
+    sys.stdout.flush()  # 强制刷新输出
+    
     logger.info("=" * 60)
     logger.info("开始执行每日股票数据增量更新任务 (使用Tushare)")
     logger.info("=" * 60)
