@@ -91,6 +91,55 @@ def check_aitrader_data():
         }
 
 
+def update_data_tushare_direct():
+    """使用Tushare直接调用模式更新数据（适合Streamlit Cloud）"""
+    import sys
+    sys.path.insert(0, str(AITRADER_PATH))
+    
+    from update_with_tushare_direct import update_data_direct
+    
+    progress_bar = st.progress(0)
+    status_text = st.empty()
+    log_container = st.expander("📋 查看详细日志", expanded=True)
+    log_text = log_container.empty()
+    
+    logs = []
+    
+    def progress_callback(progress, current, total, message):
+        """进度回调"""
+        progress_bar.progress(progress / 100)
+        status_text.text(f"📊 进度: {current}/{total} ({progress}%) - {message}")
+    
+    def log_callback(message):
+        """日志回调"""
+        logs.append(message)
+        if len(logs) > 100:
+            logs.pop(0)
+        log_text.text('\n'.join(logs[-20:]))
+    
+    try:
+        result = update_data_direct(
+            progress_callback=progress_callback,
+            log_callback=log_callback
+        )
+        
+        if result and result['success'] > 0:
+            st.success(f"✅ 数据更新成功！成功 {result['success']} 只，跳过 {result['skip']} 只，失败 {result['error']} 只")
+            st.balloons()
+            return True
+        else:
+            st.error("❌ 更新失败，请查看日志")
+            return False
+    except Exception as e:
+        st.error(f"❌ 更新出错: {e}")
+        import traceback
+        st.code(traceback.format_exc())
+        return False
+    finally:
+        progress_bar.empty()
+        status_text.empty()
+
+
 def update_data_with_progress():
     """带进度显示的数据更新"""
     import re
@@ -1020,21 +1069,44 @@ def display_aitrader_data_management():
         st.markdown("### 🔄 更新全量数据")
         st.caption("增量更新所有A股数据到最新交易日")
         
+        # 选择更新方式
+        update_mode = st.radio(
+            "更新方式",
+            ["📊 Tushare (云端推荐)", "🚀 Baostock (本地更快)"],
+            horizontal=True,
+            help="Tushare: 适合云端部署，稳定可靠\nBaostock: 本地使用更快，但云端Python 3.13不支持"
+        )
+        
         if st.button("🚀 开始更新", use_container_width=True, type="primary", key="update_btn"):
-            # 运行数据更新
+            # 根据选择运行不同的更新方式
             with st.spinner("正在启动更新任务..."):
-                update_data_with_progress()
+                if "Tushare" in update_mode:
+                    # 使用Tushare直接调用模式（适合云端）
+                    update_data_tushare_direct()
+                else:
+                    # 使用Baostock subprocess模式（适合本地）
+                    update_data_with_progress()
                 # 更新完成后刷新页面状态
                 st.rerun()
         
-        st.info("""
-        **更新说明:**
-        - 📊 首次运行约13-20分钟
-        - ⚡ 日常增量更新约2-3分钟
-        - 🔄 自动跳过停牌/退市股票
-        - 💾 支持断点续传（中断后可继续）
-        - 📡 数据源: Baostock (免费)
-        """)
+        if "Tushare" in update_mode:
+            st.info("""
+            **Tushare模式:**
+            - 📊 首次运行约30-45分钟
+            - ⚡ 日常增量更新约5-8分钟
+            - 🔄 API限流: 200次/分钟
+            - 💾 适合云端部署
+            - 📡 前复权数据
+            """)
+        else:
+            st.info("""
+            **Baostock模式:**
+            - 📊 首次运行约13-20分钟
+            - ⚡ 日常增量更新约2-3分钟
+            - 🔄 自动跳过停牌/退市股票
+            - 💾 支持断点续传
+            - 📡 数据源: Baostock (免费)
+            """)
     
     with col2:
         st.markdown("### 📊 数据统计")
