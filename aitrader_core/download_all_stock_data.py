@@ -63,7 +63,7 @@ else:
 # 初始化 Tushare API
 try:
     # 从环境变量或配置文件读取 Token
-    tushare_token = os.environ.get('TUSHARE_TOKEN', '5ba59a19b959a1a7e32ca2a59e60ee0d4dafc9cea17feabb0c61adf4')
+    tushare_token = os.environ.get('TUSHARE_TOKEN', 'ad56243b601d82fd5c4aaf04b72d4d9d567401898d46c20f4d905d59')
     pro = ts.pro_api(tushare_token)
     logger.info("✅ Tushare API 初始化成功")
 except Exception as e:
