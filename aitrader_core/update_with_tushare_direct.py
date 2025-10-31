@@ -133,8 +133,10 @@ def update_data_direct(progress_callback=None, log_callback=None):
                 else:
                     skip_count += 1
                 
-                # API限流 (免费用户: 200次/分钟)
-                time.sleep(0.32)
+                # API限流优化 (2000积分用户: 2000次/分钟)
+                # 2000积分 = 2000次/分钟 = 60秒/2000次 = 0.03秒/次
+                # 为了安全起见，设置为 0.04秒/次 (约1500次/分钟)
+                time.sleep(0.04)  # 约1500次/分钟，留有安全余量
                 
             except Exception as e:
                 error_count += 1
