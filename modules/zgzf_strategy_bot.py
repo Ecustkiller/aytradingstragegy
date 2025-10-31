@@ -194,8 +194,9 @@ def display_zgzf_strategy():
             # 从 AI数据管理 模块的数据目录加载
             from pathlib import Path
             import glob
+            from .aitrader_integration import get_stock_data_dir
             
-            data_dir = Path.home() / "stock_data"
+            data_dir = get_stock_data_dir()
             
             # 统计现有数据
             if data_dir.exists():
@@ -264,8 +265,9 @@ def display_zgzf_strategy():
             if data_from == "从本地数据":
                 # 从 AI数据管理 的数据目录加载
                 from pathlib import Path
+                from .aitrader_integration import get_stock_data_dir
                 
-                data_dir = Path.home() / "stock_data"
+                data_dir = get_stock_data_dir()
                 
                 with st.spinner("正在加载本地数据..."):
                     stock_data_dict = {}

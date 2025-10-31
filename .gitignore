@@ -30,6 +30,11 @@ data_cache/
 temp_data_*/
 stock_data_*.xlsx
 
+# 股票数据（保留目录但不提交CSV文件）
+data/stock_data/*.csv
+!data/stock_data/.gitkeep
+!data/stock_data/README.md
+
 # IDE
 .vscode/
 .idea/

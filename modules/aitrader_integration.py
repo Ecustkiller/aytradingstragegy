@@ -18,11 +18,45 @@ if str(AITRADER_PATH) not in sys.path:
     sys.path.insert(0, str(AITRADER_PATH))
 
 
+def get_stock_data_dir():
+    """获取股票数据目录，支持多种环境"""
+    import os
+    
+    # 优先级1: 环境变量配置
+    if 'STOCK_DATA_DIR' in os.environ:
+        return Path(os.environ['STOCK_DATA_DIR'])
+    
+    # 优先级2: 项目目录（统一使用，本地和云端都一样）
+    project_dir = Path(__file__).parent.parent / "data" / "stock_data"
+    
+    # 如果项目目录不存在，创建它
+    if not project_dir.exists():
+        try:
+            project_dir.mkdir(parents=True, exist_ok=True)
+            print(f"✅ 已创建数据目录: {project_dir}")
+        except Exception as e:
+            print(f"⚠️ 无法创建数据目录: {e}")
+    
+    # 优先级3: 本地用户目录（兼容旧数据）
+    local_dir = Path.home() / "stock_data"
+    if local_dir.exists() and not project_dir.exists():
+        return local_dir
+    
+    # 默认返回项目目录
+    return project_dir
+
+
 def check_aitrader_data():
     """检查AI Trader数据状态"""
     import datetime
+    import os
     
-    stock_data_dir = Path.home() / "stock_data"
+    stock_data_dir = get_stock_data_dir()
+    
+    # 检测是否在云端环境
+    is_cloud = os.environ.get('STREAMLIT_SHARING_MODE') or \
+               os.environ.get('SPACE_ID') or \
+               os.environ.get('RENDER')
     
     if stock_data_dir.exists():
         csv_files = list(stock_data_dir.glob("*.csv"))
@@ -36,21 +70,24 @@ def check_aitrader_data():
                 'count': stock_count,
                 'path': stock_data_dir,
                 'latest_date': latest_date,
-                'status': '正常' if stock_count > 5000 else '数据不完整'
+                'status': '正常' if stock_count > 5000 else '数据不完整',
+                'is_cloud': is_cloud
             }
         else:
             return {
                 'count': 0,
                 'path': stock_data_dir,
                 'latest_date': None,
-                'status': '无数据'
+                'status': '无数据',
+                'is_cloud': is_cloud
             }
     else:
         return {
             'count': 0,
             'path': stock_data_dir,
             'latest_date': None,
-            'status': '目录不存在'
+            'status': '目录不存在' + ('（云端环境）' if is_cloud else ''),
+            'is_cloud': is_cloud
         }
 
 
