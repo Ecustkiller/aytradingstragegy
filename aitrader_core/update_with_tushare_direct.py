@@ -96,7 +96,14 @@ def update_data_direct(progress_callback=None, log_callback=None):
                 try:
                     existing_df = pd.read_csv(csv_file)
                     if not existing_df.empty and 'trade_date' in existing_df.columns:
-                        last_date = str(existing_df['trade_date'].max())
+                        # 确保日期格式一致（YYYYMMDD字符串）
+                        last_date_raw = existing_df['trade_date'].max()
+                        # 统一转换为字符串格式 YYYYMMDD
+                        if isinstance(last_date_raw, (int, float)):
+                            last_date = str(int(last_date_raw))
+                        else:
+                            last_date = str(last_date_raw).replace('-', '')[:8]
+                        
                         # 如果已是最新，跳过
                         if last_date >= end_date:
                             skip_count += 1
