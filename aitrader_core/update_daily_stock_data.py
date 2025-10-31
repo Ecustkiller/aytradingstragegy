@@ -44,16 +44,27 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # 配置参数
-# 优先使用用户目录的stock_data，如果不存在则使用项目目录
-USER_STOCK_DATA_DIR = os.path.expanduser("~/stock_data")
-PROJECT_STOCK_DATA_DIR = os.path.join(PROJECT_ROOT, "data", "quotes")
-
-if os.path.exists(USER_STOCK_DATA_DIR):
-    STOCK_DATA_DIR = USER_STOCK_DATA_DIR
-    logger.info(f"使用用户目录数据: {STOCK_DATA_DIR}")
+# 优先级：环境变量 > 项目目录 > 用户目录
+if 'STOCK_DATA_DIR' in os.environ:
+    STOCK_DATA_DIR = os.environ['STOCK_DATA_DIR']
+    logger.info(f"✅ 使用环境变量指定的数据目录: {STOCK_DATA_DIR}")
 else:
-    STOCK_DATA_DIR = PROJECT_STOCK_DATA_DIR
-    logger.info(f"使用项目目录数据: {STOCK_DATA_DIR}")
+    # 优先使用项目目录（统一云端和本地）
+    PROJECT_STOCK_DATA_DIR = os.path.join(os.path.dirname(PROJECT_ROOT), "data", "stock_data")
+    USER_STOCK_DATA_DIR = os.path.expanduser("~/stock_data")
+    
+    if os.path.exists(PROJECT_STOCK_DATA_DIR):
+        STOCK_DATA_DIR = PROJECT_STOCK_DATA_DIR
+        logger.info(f"✅ 使用项目目录数据: {STOCK_DATA_DIR}")
+    elif os.path.exists(USER_STOCK_DATA_DIR):
+        STOCK_DATA_DIR = USER_STOCK_DATA_DIR
+        logger.info(f"✅ 使用用户目录数据: {STOCK_DATA_DIR}")
+    else:
+        # 默认创建项目目录
+        STOCK_DATA_DIR = PROJECT_STOCK_DATA_DIR
+        os.makedirs(STOCK_DATA_DIR, exist_ok=True)
+        logger.info(f"✅ 创建并使用项目目录: {STOCK_DATA_DIR}")
+
 ADJUST_FLAG = "2"  # 前复权
 WEBHOOK_URL = ""  # 企业微信Webhook地址（可选）
 

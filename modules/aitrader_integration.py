@@ -111,13 +111,33 @@ def update_data_with_progress():
     logs = []
     
     try:
+        # 获取数据目录并设置环境变量
+        data_dir = get_stock_data_dir()
+        
+        # 确保数据目录存在
+        if not data_dir.exists():
+            try:
+                data_dir.mkdir(parents=True, exist_ok=True)
+                st.info(f"✅ 已创建数据目录: {data_dir}")
+            except Exception as e:
+                st.error(f"❌ 无法创建数据目录: {e}")
+                return False
+        
+        # 设置环境变量
+        env = os.environ.copy()
+        env['STOCK_DATA_DIR'] = str(data_dir)
+        
+        st.info(f"📂 数据目录: {data_dir}")
+        st.info(f"📜 脚本路径: {script_path}")
+        
         process = subprocess.Popen(
             ['python3', str(script_path)],
             cwd=str(AITRADER_PATH),
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             universal_newlines=True,
-            bufsize=1
+            bufsize=1,
+            env=env
         )
         
         total_files = 5646  # 大约的股票数量
