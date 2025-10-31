@@ -95,40 +95,69 @@ def update_data_with_progress():
     """带进度显示的数据更新"""
     import re
     
-    script_path = AITRADER_PATH / "update_daily_stock_data.py"
+    # 获取数据目录
+    data_dir = get_stock_data_dir()
+    
+    # 确保数据目录存在
+    if not data_dir.exists():
+        try:
+            data_dir.mkdir(parents=True, exist_ok=True)
+            st.info(f"✅ 已创建数据目录: {data_dir}")
+        except Exception as e:
+            st.error(f"❌ 无法创建数据目录: {e}")
+            return False
+    
+    # 检查是否已有数据（决定使用全量下载还是增量更新）
+    csv_files = list(data_dir.glob("*.csv"))
+    stock_count = len(csv_files)
+    
+    if stock_count == 0:
+        # 首次下载，使用全量下载脚本
+        st.warning("🔍 检测到本地无数据，将进行**全量下载**（首次约需30-60分钟）")
+        script_path = AITRADER_PATH / "download_all_stock_data.py"
+        mode = "全量下载"
+    elif stock_count < 5000:
+        # 数据不完整，建议全量下载
+        st.warning(f"⚠️ 本地数据不完整（仅{stock_count}只股票），建议**全量下载**补全数据")
+        use_full_download = st.radio(
+            "选择更新方式",
+            ["全量下载（推荐）", "增量更新（快速）"],
+            help="全量下载：下载所有股票数据（约5600只）\n增量更新：仅更新已有股票的最新数据"
+        )
+        
+        if "全量" in use_full_download:
+            script_path = AITRADER_PATH / "download_all_stock_data.py"
+            mode = "全量下载"
+        else:
+            script_path = AITRADER_PATH / "update_daily_stock_data.py"
+            mode = "增量更新"
+    else:
+        # 数据完整，使用增量更新
+        st.success(f"✅ 本地已有{stock_count}只股票数据，将进行**增量更新**")
+        script_path = AITRADER_PATH / "update_daily_stock_data.py"
+        mode = "增量更新"
     
     if not script_path.exists():
-        st.error(f"❌ 更新脚本不存在: {script_path}")
+        st.error(f"❌ 脚本不存在: {script_path}")
         return False
     
-    st.info("🔄 正在更新A股数据，预计需要13-20分钟...")
+    st.info(f"🔄 正在{mode}，请稍候...")
     
     progress_bar = st.progress(0)
     status_text = st.empty()
-    log_container = st.expander("📋 查看详细日志", expanded=False)
+    log_container = st.expander("📋 查看详细日志", expanded=True)
     log_text = log_container.empty()
     
     logs = []
     
     try:
-        # 获取数据目录并设置环境变量
-        data_dir = get_stock_data_dir()
-        
-        # 确保数据目录存在
-        if not data_dir.exists():
-            try:
-                data_dir.mkdir(parents=True, exist_ok=True)
-                st.info(f"✅ 已创建数据目录: {data_dir}")
-            except Exception as e:
-                st.error(f"❌ 无法创建数据目录: {e}")
-                return False
-        
         # 设置环境变量
         env = os.environ.copy()
         env['STOCK_DATA_DIR'] = str(data_dir)
         
         st.info(f"📂 数据目录: {data_dir}")
-        st.info(f"📜 脚本路径: {script_path}")
+        st.info(f"📜 脚本路径: {script_path.name}")
+        st.info(f"🔧 模式: {mode}")
         
         process = subprocess.Popen(
             ['python3', str(script_path)],
