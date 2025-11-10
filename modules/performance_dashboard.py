@@ -198,7 +198,7 @@ class PerformanceDashboard:
             title_text="系统资源使用趋势"
         )
         
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     
     def _show_app_performance(self):
         """显示应用性能指标"""
@@ -224,7 +224,7 @@ class PerformanceDashboard:
             })
         
         df = pd.DataFrame(perf_data)
-        st.dataframe(df, use_container_width=True)
+        st.dataframe(df, width="stretch")
         
         # 性能图表
         if len(perf_data) > 0:
@@ -253,7 +253,7 @@ class PerformanceDashboard:
             height=300
         )
         
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     
     def _show_cache_stats(self):
         """显示缓存统计"""

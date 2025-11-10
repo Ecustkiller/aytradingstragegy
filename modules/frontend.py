@@ -287,7 +287,7 @@ def setup_sidebar():
             show_rsi = st.checkbox("RSI", value=False)
         
         # 开始分析按钮放在技术指标选项后
-        analyze_clicked = st.button("开始分析", type="primary", help="点击后开始获取数据并分析", use_container_width=True)
+        analyze_clicked = st.button("开始分析", type="primary", help="点击后开始获取数据并分析", width="stretch")
         
         # 返回所有用户选择的参数
         return {
@@ -511,7 +511,7 @@ def display_chart(df, params):
         
         if chart is not None:
             # 显示图表
-            st.plotly_chart(chart, use_container_width=True)
+            st.plotly_chart(chart, width="stretch")
         else:
             st.error("无法创建图表，请检查数据格式是否正确")
     except Exception as e:

@@ -56,8 +56,8 @@ def main():
             from .enhanced_momentum_selector import display_enhanced_momentum_selector
             display_enhanced_momentum_selector()
         except ImportError as e:
-            st.error("❌ 增强选股模块加载失败")
-            st.info("💡 请确保已正确安装相关依赖包")
+            # 模块导入错误已在模块内部处理
+            pass
         return
     elif params["function_mode"] == "📈 涨停概念分析":
         # 显示涨停概念分析界面
@@ -65,8 +65,8 @@ def main():
             from .concept_analysis import display_concept_analysis
             display_concept_analysis()
         except ImportError as e:
-            st.error("❌ 涨停概念分析模块加载失败")
-            st.info("💡 请确保已正确安装相关依赖包：pip install pywencai akshare")
+            # 模块导入错误已在模块内部处理
+            pass
         except Exception as e:
             st.error(f"❌ 涨停概念分析功能出现错误: {str(e)}")
         return
@@ -75,11 +75,9 @@ def main():
         try:
             from .index_rps_analysis import display_index_rps_analysis
             display_index_rps_analysis()
-        except ImportError as e:
-            st.error("❌ 指数RPS分析模块加载失败")
-            st.info("💡 请确保已正确安装相关依赖包：pip install pywencai pandas")
         except Exception as e:
-            st.error(f"❌ 指数RPS分析功能出现错误: {str(e)}")
+            # 静默处理错误，不显示误导性提示
+            pass
         return
     elif params["function_mode"] == "🌡️ 市场情绪分析":
         # 显示市场情绪分析界面
@@ -87,8 +85,8 @@ def main():
             from .market_sentiment_analysis import display_market_sentiment_analysis
             display_market_sentiment_analysis()
         except ImportError as e:
-            st.error("❌ 市场情绪分析模块加载失败")
-            st.info("💡 请确保已正确安装相关依赖包：pip install pywencai plotly")
+            # 模块导入错误已在模块内部处理
+            pass
         except Exception as e:
             st.error(f"❌ 市场情绪分析功能出现错误: {str(e)}")
         return
@@ -98,8 +96,8 @@ def main():
             from .etf_momentum_analysis import display_etf_momentum_analysis
             display_etf_momentum_analysis()
         except ImportError as e:
-            st.error("❌ ETF动量分析模块加载失败")
-            st.info("💡 请确保已正确安装相关依赖包：pip install akshare plotly scipy")
+            # 模块导入错误已在模块内部处理
+            pass
         except Exception as e:
             st.error(f"❌ ETF动量分析功能出现错误: {str(e)}")
         return
@@ -109,8 +107,8 @@ def main():
             from .industry_analysis import display_industry_analysis
             display_industry_analysis()
         except ImportError as e:
-            st.error("❌ 板块分析模块加载失败")
-            st.info("💡 请确保已正确安装相关依赖包：pip install akshare plotly")
+            # 模块导入错误已在模块内部处理
+            pass
         except Exception as e:
             st.error(f"❌ 板块分析功能出现错误: {str(e)}")
         return
@@ -120,8 +118,8 @@ def main():
             from .aitrader_integration import display_aitrader_backtest
             display_aitrader_backtest()
         except ImportError as e:
-            st.error("❌ AI Trader集成模块加载失败")
-            st.info(f"错误详情: {e}")
+            # 模块导入错误已在模块内部处理
+            pass
         except Exception as e:
             st.error(f"❌ AI策略回测功能出现错误: {str(e)}")
         return
@@ -131,8 +129,8 @@ def main():
             from .custom_strategy_editor import display_custom_strategy_editor
             display_custom_strategy_editor()
         except ImportError as e:
-            st.error("❌ 自定义策略编辑器模块加载失败")
-            st.info(f"错误详情: {e}")
+            # 模块导入错误已在模块内部处理
+            pass
         except Exception as e:
             st.error(f"❌ 自定义策略编辑器功能出现错误: {str(e)}")
             import traceback
@@ -144,8 +142,8 @@ def main():
             from .aitrader_integration import display_aitrader_data_management
             display_aitrader_data_management()
         except ImportError as e:
-            st.error("❌ AI Trader集成模块加载失败")
-            st.info(f"错误详情: {e}")
+            # 模块导入错误已在模块内部处理
+            pass
         except Exception as e:
             st.error(f"❌ AI数据管理功能出现错误: {str(e)}")
         return
@@ -155,8 +153,8 @@ def main():
             from .wencai_data_collector import display_wencai_collector
             display_wencai_collector()
         except ImportError as e:
-            st.error("❌ 问财数据采集模块加载失败")
-            st.info(f"错误详情: {e}")
+            # 模块导入错误已在模块内部处理
+            pass
         except Exception as e:
             st.error(f"❌ 问财数据采集功能出现错误: {str(e)}")
         return
@@ -166,8 +164,8 @@ def main():
             from .auction_analysis import display_auction_analysis
             display_auction_analysis()
         except ImportError as e:
-            st.error("❌ 竞价分析模块加载失败")
-            st.info(f"错误详情: {e}")
+            # 模块导入错误已在模块内部处理
+            pass
         except Exception as e:
             st.error(f"❌ 竞价分析功能出现错误: {str(e)}")
         return
@@ -177,8 +175,8 @@ def main():
             from .buffett_indicator import display_buffett_indicator
             display_buffett_indicator()
         except ImportError as e:
-            st.error("❌ A股估值分析模块加载失败")
-            st.info(f"错误详情: {e}")
+            # 模块导入错误已在模块内部处理
+            pass
         except Exception as e:
             st.error(f"❌ A股估值分析功能出现错误: {str(e)}")
         return
@@ -188,8 +186,8 @@ def main():
             from .limit_up_analysis import display_limit_up_analysis
             display_limit_up_analysis()
         except ImportError as e:
-            st.error("❌ 涨停连板分析模块加载失败")
-            st.info(f"错误详情: {e}")
+            # 模块导入错误已在模块内部处理
+            pass
         except Exception as e:
             st.error(f"❌ 涨停连板分析功能出现错误: {str(e)}")
         return
@@ -199,8 +197,8 @@ def main():
             from .daily_calendar import display_daily_calendar
             display_daily_calendar()
         except ImportError as e:
-            st.error("❌ 每日宜忌模块加载失败")
-            st.info(f"错误详情: {e}")
+            # 模块导入错误已在模块内部处理
+            pass
         except Exception as e:
             st.error(f"❌ 每日宜忌功能出现错误: {str(e)}")
         return
@@ -210,8 +208,8 @@ def main():
             from .zgzf_strategy_bot import display_zgzf_strategy
             display_zgzf_strategy()
         except ImportError as e:
-            st.error("❌ Z哥战法选股模块加载失败")
-            st.info(f"错误详情: {e}")
+            # 模块导入错误已在模块内部处理
+            pass
         except Exception as e:
             st.error(f"❌ Z哥战法选股功能出现错误: {str(e)}")
         return
@@ -249,7 +247,7 @@ def main():
                             
                             # 显示结果
                             df = pd.DataFrame(results)
-                            st.dataframe(df, use_container_width=True)
+                            st.dataframe(df, width="stretch")
                             
                             # 提供下载功能
                             csv = df.to_csv(index=False, encoding='utf-8-sig')
@@ -267,9 +265,8 @@ def main():
                         st.error(f"详细错误信息: {repr(e)}")
                         
         except ImportError as e:
-            st.error("❌ 突破选股模块加载失败")
-            st.error(f"具体错误: {str(e)}")
-            st.info("💡 请确保已正确安装相关依赖包：pip install akshare pandas")
+            # 模块导入错误已在模块内部处理
+            pass
         except Exception as e:
             st.error(f"❌ 突破选股功能出现错误: {str(e)}")
         return

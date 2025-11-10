@@ -164,7 +164,7 @@ def display_industry_analysis():
             show_count = st.slider("显示数量", min_value=10, max_value=50, value=20)
         
         # 获取板块数据按钮
-        if st.button("📊 获取板块排行榜", type="primary", use_container_width=True):
+        if st.button("📊 获取板块排行榜", type="primary", width="stretch"):
             
             if start_date >= end_date:
                 st.error("❌ 开始日期必须早于结束日期")
@@ -229,7 +229,7 @@ def display_industry_analysis():
                         format="%.2f%%"
                     )
                 },
-                use_container_width=True
+                width="stretch"
             )
             
             # 导出功能
@@ -275,7 +275,7 @@ def display_industry_analysis():
             )
         
         # 查询成分股按钮
-        if st.button("🔍 查询成分股", type="primary", use_container_width=True):
+        if st.button("🔍 查询成分股", type="primary", width="stretch"):
             
             with st.spinner(f'正在查询 {selected_board} 成分股...'):
                 stocks_df = get_industry_stocks(selected_board)
@@ -326,7 +326,7 @@ def display_industry_analysis():
                     "涨跌幅": st.column_config.NumberColumn("涨跌幅(%)", format="%.2f%%"),
                     "换手率": st.column_config.NumberColumn("换手率(%)", format="%.2f%%")
                 },
-                use_container_width=True
+                width="stretch"
             )
             
             # 导出功能
@@ -351,7 +351,7 @@ def display_industry_analysis():
             show_realtime_count = st.slider("显示数量", min_value=10, max_value=30, value=15)
         
         # 获取实时数据按钮
-        if st.button("⚡ 获取实时排名", type="primary", use_container_width=True) or auto_refresh:
+        if st.button("⚡ 获取实时排名", type="primary", width="stretch") or auto_refresh:
             
             with st.spinner('正在获取实时板块数据...'):
                 realtime_df = get_realtime_industry_ranking()
@@ -380,7 +380,7 @@ def display_industry_analysis():
                     "量比": st.column_config.NumberColumn("量比", format="%.2f"),
                     "总市值(亿)": st.column_config.NumberColumn("总市值(亿)", format="%.1f亿")
                 },
-                use_container_width=True
+                width="stretch"
             )
             
             # 自动刷新

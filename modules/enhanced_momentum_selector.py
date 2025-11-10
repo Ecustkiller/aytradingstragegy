@@ -605,7 +605,7 @@ def display_enhanced_momentum_selector():
             # 显示表格
             st.dataframe(
                 results_df,
-                use_container_width=True,
+                width="stretch",
                 hide_index=True
             )
             
@@ -731,7 +731,7 @@ def display_enhanced_momentum_selector():
         display_results(cached_results, is_cached=True)
     
     # 开始选股按钮
-    if st.button("🚀 开始增强版选股", type="primary", use_container_width=True):
+    if st.button("🚀 开始增强版选股", type="primary", width="stretch"):
         
         # 创建进度条
         progress_bar = st.progress(0)

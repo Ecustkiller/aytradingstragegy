@@ -18,269 +18,71 @@ if str(AITRADER_PATH) not in sys.path:
     sys.path.insert(0, str(AITRADER_PATH))
 
 
-def get_stock_data_dir():
-    """获取股票数据目录，支持多种环境"""
-    import os
-    
-    # 优先级1: 环境变量配置
-    if 'STOCK_DATA_DIR' in os.environ:
-        return Path(os.environ['STOCK_DATA_DIR'])
-    
-    # 优先级2: 项目目录（统一使用，本地和云端都一样）
-    project_dir = Path(__file__).parent.parent / "data" / "stock_data"
-    
-    # 如果项目目录不存在，创建它
-    if not project_dir.exists():
-        try:
-            project_dir.mkdir(parents=True, exist_ok=True)
-            print(f"✅ 已创建数据目录: {project_dir}")
-        except Exception as e:
-            print(f"⚠️ 无法创建数据目录: {e}")
-    
-    # 优先级3: 本地用户目录（兼容旧数据）
-    local_dir = Path.home() / "stock_data"
-    if local_dir.exists() and not project_dir.exists():
-        return local_dir
-    
-    # 默认返回项目目录
-    return project_dir
-
-
 def check_aitrader_data():
     """检查AI Trader数据状态"""
-    import datetime
-    import os
-    
-    stock_data_dir = get_stock_data_dir()
-    
-    # 检测是否在云端环境
-    is_cloud = os.environ.get('STREAMLIT_SHARING_MODE') or \
-               os.environ.get('SPACE_ID') or \
-               os.environ.get('RENDER')
+    stock_data_dir = Path.home() / "stock_data"
     
     if stock_data_dir.exists():
         csv_files = list(stock_data_dir.glob("*.csv"))
-        stock_count = len(csv_files)
-        
-        # 获取最新更新时间
-        if csv_files:
-            latest_mtime = max(f.stat().st_mtime for f in csv_files)
-            latest_date = datetime.datetime.fromtimestamp(latest_mtime)
-            return {
-                'count': stock_count,
-                'path': stock_data_dir,
-                'latest_date': latest_date,
-                'status': '正常' if stock_count > 5000 else '数据不完整',
-                'is_cloud': is_cloud
-            }
-        else:
-            return {
-                'count': 0,
-                'path': stock_data_dir,
-                'latest_date': None,
-                'status': '无数据',
-                'is_cloud': is_cloud
-            }
-    else:
-        return {
-            'count': 0,
-            'path': stock_data_dir,
-            'latest_date': None,
-            'status': '目录不存在' + ('（云端环境）' if is_cloud else ''),
-            'is_cloud': is_cloud
-        }
-
-
-def update_data_tushare_direct():
-    """使用Tushare直接调用模式更新数据（适合Streamlit Cloud）"""
-    import sys
-    sys.path.insert(0, str(AITRADER_PATH))
-    
-    from update_with_tushare_direct import update_data_direct
-    
-    progress_bar = st.progress(0)
-    status_text = st.empty()
-    log_container = st.expander("📋 查看详细日志", expanded=True)
-    log_text = log_container.empty()
-    
-    logs = []
-    
-    def progress_callback(progress, current, total, message):
-        """进度回调"""
-        progress_bar.progress(progress / 100)
-        status_text.text(f"📊 进度: {current}/{total} ({progress}%) - {message}")
-    
-    def log_callback(message):
-        """日志回调"""
-        logs.append(message)
-        if len(logs) > 100:
-            logs.pop(0)
-        log_text.text('\n'.join(logs[-20:]))
-    
-    try:
-        result = update_data_direct(
-            progress_callback=progress_callback,
-            log_callback=log_callback
-        )
-        
-        if result and result['success'] > 0:
-            st.success(f"✅ 数据更新成功！成功 {result['success']} 只，跳过 {result['skip']} 只，失败 {result['error']} 只")
-            st.balloons()
-            return True
-        else:
-            st.error("❌ 更新失败，请查看日志")
-            return False
-    except Exception as e:
-        st.error(f"❌ 更新出错: {e}")
-        import traceback
-        st.code(traceback.format_exc())
-        return False
-    finally:
-        progress_bar.empty()
-        status_text.empty()
+        return len(csv_files), stock_data_dir
+    return 0, stock_data_dir
 
 
 def update_data_with_progress():
     """带进度显示的数据更新"""
-    import re
-    
-    # 获取数据目录
-    data_dir = get_stock_data_dir()
-    
-    # 确保数据目录存在
-    if not data_dir.exists():
-        try:
-            data_dir.mkdir(parents=True, exist_ok=True)
-            st.info(f"✅ 已创建数据目录: {data_dir}")
-        except Exception as e:
-            st.error(f"❌ 无法创建数据目录: {e}")
-            return False
-    
-    # 检查是否已有数据（决定使用全量下载还是增量更新）
-    csv_files = list(data_dir.glob("*.csv"))
-    stock_count = len(csv_files)
-    
-    if stock_count == 0:
-        # 首次下载，使用全量下载脚本
-        st.warning("🔍 检测到本地无数据，将进行**全量下载**（首次约需30-60分钟）")
-        script_path = AITRADER_PATH / "download_all_stock_data.py"
-        mode = "全量下载"
-    elif stock_count < 5000:
-        # 数据不完整，建议全量下载
-        st.warning(f"⚠️ 本地数据不完整（仅{stock_count}只股票），建议**全量下载**补全数据")
-        use_full_download = st.radio(
-            "选择更新方式",
-            ["全量下载（推荐）", "增量更新（快速）"],
-            help="全量下载：下载所有股票数据（约5600只）\n增量更新：仅更新已有股票的最新数据"
-        )
-        
-        if "全量" in use_full_download:
-            script_path = AITRADER_PATH / "download_all_stock_data.py"
-            mode = "全量下载"
-        else:
-            script_path = AITRADER_PATH / "update_daily_stock_data.py"
-            mode = "增量更新"
-    else:
-        # 数据完整，使用增量更新
-        st.success(f"✅ 本地已有{stock_count}只股票数据，将进行**增量更新**")
-        script_path = AITRADER_PATH / "update_daily_stock_data.py"
-        mode = "增量更新"
+    script_path = AITRADER_PATH / "update_daily_stock_data.py"
     
     if not script_path.exists():
-        st.error(f"❌ 脚本不存在: {script_path}")
-        return False
+        st.error(f"❌ 更新脚本不存在: {script_path}")
+        return
     
-    st.info(f"🔄 正在{mode}，请稍候...")
+    st.info("🔄 正在更新A股数据...")
     
     progress_bar = st.progress(0)
     status_text = st.empty()
-    log_container = st.expander("📋 查看详细日志", expanded=True)
-    log_text = log_container.empty()
-    
-    logs = []
     
     try:
-        # 设置环境变量
-        env = os.environ.copy()
-        env['STOCK_DATA_DIR'] = str(data_dir)
-        
-        st.info(f"📂 数据目录: {data_dir}")
-        st.info(f"📜 脚本路径: {script_path.name}")
-        st.info(f"🔧 模式: {mode}")
-        
         process = subprocess.Popen(
             ['python3', str(script_path)],
             cwd=str(AITRADER_PATH),
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             universal_newlines=True,
-            bufsize=1,
-            env=env
+            bufsize=1
         )
         
         total_files = 5646  # 大约的股票数量
-        processed_count = 0
-        updated_count = 0
+        current = 0
         
         for line in process.stdout:
-            line = line.strip()
-            if not line:
-                continue
-            
-            # 添加到日志
-            logs.append(line)
-            if len(logs) > 100:  # 只保留最后100条
-                logs.pop(0)
-            log_text.text('\n'.join(logs[-20:]))  # 显示最后20条
-            
-            # 解析进度 (格式: [XX.X%] 进度: XXX/5646)
-            progress_match = re.search(r'\[(\d+\.\d+)%\]\s+进度:\s+(\d+)/(\d+)', line)
-            if progress_match:
-                progress_pct = float(progress_match.group(1))
-                processed_count = int(progress_match.group(2))
-                total_files = int(progress_match.group(3))
-                
-                progress_bar.progress(int(progress_pct))
-                status_text.text(f"📊 进度: {processed_count}/{total_files} ({progress_pct:.1f}%)")
-                continue
-            
-            # 解析新增记录 (格式: xxx 新增 X 条记录)
-            if '新增' in line and '条记录' in line:
-                updated_count += 1
-                continue
-            
-            # 检测完成信息
-            if '数据更新完成' in line:
+            # 解析进度
+            if '进度:' in line and '/' in line:
+                try:
+                    parts = line.split('进度:')[1].split('/')[0].strip()
+                    current = int(parts)
+                    progress = min(int((current / total_files) * 100), 99)
+                    progress_bar.progress(progress)
+                    status_text.text(f"已处理: {current}/{total_files} 只股票")
+                except:
+                    pass
+            elif '数据更新完成' in line:
                 progress_bar.progress(100)
                 status_text.text("✅ 更新完成！")
-                continue
-            
-            # 检测统计信息
-            if '实际更新:' in line:
-                match = re.search(r'实际更新:\s+(\d+)', line)
-                if match:
-                    updated_count = int(match.group(1))
         
         process.wait()
         
         if process.returncode == 0:
-            st.success(f"✅ 数据更新成功！共更新 {updated_count} 只股票")
+            st.success("✅ 数据更新成功！")
             st.balloons()
             
             # 重新检查数据
-            data_info = check_aitrader_data()
-            st.info(f"📊 当前数据量: {data_info['count']} 只股票 | 最后更新: {data_info['latest_date'].strftime('%Y-%m-%d %H:%M')}")
-            return True
+            stock_count, _ = check_aitrader_data()
+            st.info(f"📊 当前数据量: {stock_count} 只股票")
         else:
             st.error(f"❌ 更新失败，返回码: {process.returncode}")
-            st.info("💡 提示：更新脚本正在后台运行，这是正常的。数据已经在更新中。")
-            return False
             
     except Exception as e:
         st.error(f"❌ 更新出错: {e}")
-        import traceback
-        st.code(traceback.format_exc())
-        return False
     finally:
         progress_bar.empty()
         status_text.empty()
@@ -443,7 +245,7 @@ def run_strategy_backtest(strategy_config):
         
         # 详细统计表
         with st.expander("📋 查看详细统计", expanded=False):
-            st.dataframe(stats, use_container_width=True)
+            st.dataframe(stats, width="stretch")
         
         # 绘制图表
         st.subheader("📈 收益曲线")
@@ -502,22 +304,22 @@ def display_aitrader_backtest():
         st.session_state.selected_data_source = '本地CSV'
     
     with col1:
-        if st.button("💾 本地CSV\n(Baostock)", use_container_width=True, 
+        if st.button("💾 本地CSV\n(Baostock)", width="stretch", 
                     type="primary" if st.session_state.selected_data_source == '本地CSV' else "secondary"):
             st.session_state.selected_data_source = '本地CSV'
     
     with col2:
-        if st.button("🌐 实时数据\n(Ashare)", use_container_width=True,
+        if st.button("🌐 实时数据\n(Ashare)", width="stretch",
                     type="primary" if st.session_state.selected_data_source == 'Ashare' else "secondary"):
             st.session_state.selected_data_source = 'Ashare'
     
     with col3:
-        if st.button("📊 Tushare\n(专业版)", use_container_width=True,
+        if st.button("📊 Tushare\n(专业版)", width="stretch",
                     type="primary" if st.session_state.selected_data_source == 'Tushare' else "secondary"):
             st.session_state.selected_data_source = 'Tushare'
     
     with col4:
-        if st.button("🔧 AKShare\n(在线)", use_container_width=True,
+        if st.button("🔧 AKShare\n(在线)", width="stretch",
                     type="primary" if st.session_state.selected_data_source == 'AKShare' else "secondary"):
             st.session_state.selected_data_source = 'AKShare'
     
@@ -690,7 +492,7 @@ def display_aitrader_backtest():
     with col3:
         st.write("")  # 占位
         st.write("")  # 占位
-        run_backtest = st.button("🚀 开始回测", type="primary", use_container_width=True)
+        run_backtest = st.button("🚀 开始回测", type="primary", width="stretch")
     
     st.divider()
     
@@ -793,7 +595,7 @@ def display_aitrader_backtest():
             
             # 详细统计
             with st.expander("📋 查看详细统计", expanded=False):
-                st.dataframe(stats, use_container_width=True)
+                st.dataframe(stats, width="stretch")
             
             # 图表
             st.subheader("📈 收益曲线")
@@ -835,7 +637,7 @@ def display_aitrader_backtest():
                 try:
                     transactions = result.get_transactions()
                     if not transactions.empty:
-                        st.dataframe(transactions.tail(20), use_container_width=True)
+                        st.dataframe(transactions.tail(20), width="stretch")
                         
                         # 导出按钮
                         col1, col2 = st.columns([1, 3])
@@ -846,7 +648,7 @@ def display_aitrader_backtest():
                                 data=csv_data,
                                 file_name=f"{selected_strategy}_{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}_交易记录.csv",
                                 mime="text/csv",
-                                use_container_width=True
+                                width="stretch"
                             )
                     else:
                         st.info("暂无交易记录")
@@ -894,7 +696,7 @@ def display_aitrader_backtest():
             })
         
         compare_df = pd.DataFrame(compare_data)
-        st.dataframe(compare_df, use_container_width=True, hide_index=True)
+        st.dataframe(compare_df, width="stretch", hide_index=True)
         
         # 收益曲线对比
         with st.expander("📈 收益曲线对比", expanded=False):
@@ -928,14 +730,14 @@ def display_aitrader_backtest():
     
     with col1:
         st.markdown("### ⚡ 实时交易信号")
-        if st.button("📡 获取V13实时信号", use_container_width=True):
+        if st.button("📡 获取V13实时信号", width="stretch"):
             script_path = "V13策略_修正公式_实时信号.py"
             if (AITRADER_PATH / script_path).exists():
                 run_aitrader_script(script_path, "V13策略实时信号")
     
     with col2:
         st.markdown("### 🔧 数据更新")
-        if st.button("🔄 更新ETF数据", use_container_width=True):
+        if st.button("🔄 更新ETF数据", width="stretch"):
             run_aitrader_script("update_etf_data.py", "更新ETF数据")
     
     # 使用说明
@@ -964,99 +766,22 @@ def display_aitrader_data_management():
     """显示AI Trader数据管理界面"""
     st.header("📊 AI Trader 数据管理中心")
     
-    # 环境诊断（可折叠）
-    with st.expander("🔧 环境诊断", expanded=False):
-        st.subheader("系统环境信息")
-        
-        import sys
-        import platform
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            st.write("**Python版本**:", sys.version.split()[0])
-            st.write("**操作系统**:", platform.platform())
-            st.write("**工作目录**:", os.getcwd())
-        
-        with col2:
-            data_dir = get_stock_data_dir()
-            st.write("**数据目录**:", str(data_dir))
-            st.write("**目录存在**:", "✅" if data_dir.exists() else "❌")
-            if data_dir.exists():
-                st.write("**目录可写**:", "✅" if os.access(data_dir, os.W_OK) else "❌")
-            else:
-                st.write("**目录可写**:", "❓ (目录不存在)")
-        
-        script_path = AITRADER_PATH / "update_daily_stock_data.py"
-        st.write("**脚本路径**:", str(script_path))
-        st.write("**脚本存在**:", "✅" if script_path.exists() else "❌")
-        
-        # 测试subprocess
-        if st.button("🧪 测试Python执行"):
-            try:
-                result = subprocess.run(
-                    ['python3', '--version'],
-                    capture_output=True,
-                    text=True,
-                    timeout=5
-                )
-                st.success(f"✅ Python可执行: {result.stdout.strip()}")
-                
-                # 测试baostock
-                result2 = subprocess.run(
-                    ['python3', '-c', 'import baostock; print("baostock OK")'],
-                    capture_output=True,
-                    text=True,
-                    timeout=5
-                )
-                if result2.returncode == 0:
-                    st.success(f"✅ baostock可用: {result2.stdout.strip()}")
-                else:
-                    st.error(f"❌ baostock不可用: {result2.stderr}")
-            except Exception as e:
-                st.error(f"❌ 测试失败: {e}")
+    stock_count, data_dir = check_aitrader_data()
     
-    # 获取数据状态
-    data_info = check_aitrader_data()
-    
-    # 数据状态概览（4列布局）
-    col1, col2, col3, col4 = st.columns(4)
+    # 数据状态概览
+    col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.metric(
-            label="📁 股票数量",
-            value=f"{data_info['count']} 只",
-            delta=None if data_info['count'] == 0 else "A股全量"
-        )
+        st.metric("📁 股票数量", f"{stock_count} 只")
     
     with col2:
-        status_emoji = "✅" if data_info['status'] == "正常" else "⚠️"
-        st.metric(
-            label="💾 数据状态",
-            value=data_info['status']
-        )
+        if stock_count > 0:
+            st.metric("✅ 数据状态", "正常")
+        else:
+            st.metric("⚠️ 数据状态", "无数据")
     
     with col3:
-        if data_info['latest_date']:
-            latest_str = data_info['latest_date'].strftime('%m-%d')
-            days_ago = (pd.Timestamp.now() - pd.Timestamp(data_info['latest_date'])).days
-            delta_str = f"{days_ago}天前" if days_ago > 0 else "今日"
-            st.metric(
-                label="📅 最后更新",
-                value=latest_str,
-                delta=delta_str,
-                delta_color="normal" if days_ago < 7 else "off"
-            )
-        else:
-            st.metric(label="📅 最后更新", value="无数据")
-    
-    with col4:
-        st.metric(
-            label="📂 数据目录",
-            value="~/stock_data"
-        )
-    
-    # 详细路径显示
-    st.caption(f"💡 完整路径: `{data_info['path']}`")
+        st.metric("📂 数据目录", "~/stock_data")
     
     st.divider()
     
@@ -1069,73 +794,39 @@ def display_aitrader_data_management():
         st.markdown("### 🔄 更新全量数据")
         st.caption("增量更新所有A股数据到最新交易日")
         
-        # 选择更新方式
-        update_mode = st.radio(
-            "更新方式",
-            ["📊 Tushare (云端推荐)", "🚀 Baostock (本地更快)"],
-            horizontal=True,
-            help="Tushare: 适合云端部署，稳定可靠\nBaostock: 本地使用更快，但云端Python 3.13不支持"
-        )
+        if st.button("开始更新", width="stretch", type="primary"):
+            # 运行数据更新
+            update_data_with_progress()
         
-        if st.button("🚀 开始更新", use_container_width=True, type="primary", key="update_btn"):
-            # 根据选择运行不同的更新方式
-            with st.spinner("正在启动更新任务..."):
-                if "Tushare" in update_mode:
-                    # 使用Tushare直接调用模式（适合云端）
-                    update_data_tushare_direct()
-                else:
-                    # 使用Baostock subprocess模式（适合本地）
-                    update_data_with_progress()
-                # 更新完成后刷新页面状态
-                st.rerun()
-        
-        if "Tushare" in update_mode:
-            st.info("""
-            **Tushare模式:**
-            - 📊 首次运行约30-45分钟
-            - ⚡ 日常增量更新约5-8分钟
-            - 🔄 API限流: 200次/分钟
-            - 💾 适合云端部署
-            - 📡 前复权数据
-            """)
-        else:
-            st.info("""
-            **Baostock模式:**
-            - 📊 首次运行约13-20分钟
-            - ⚡ 日常增量更新约2-3分钟
-            - 🔄 自动跳过停牌/退市股票
-            - 💾 支持断点续传
-            - 📡 数据源: Baostock (免费)
-            """)
+        st.info("""
+        **更新说明:**
+        - 首次运行约13分钟
+        - 日常增量更新约2-3分钟
+        - 自动跳过停牌股票
+        - 支持断点续传
+        """)
     
     with col2:
         st.markdown("### 📊 数据统计")
         st.caption("数据库详细信息")
         
-        if data_info['count'] > 0:
-            st.success(f"✅ 已下载 {data_info['count']} 只股票数据")
+        if stock_count > 0:
+            st.success(f"✅ 已下载 {stock_count} 只股票数据")
+            st.caption(f"数据路径: `{data_dir}`")
             
-            # 计算数据覆盖率
-            total_stocks = 5646  # A股总数（约数）
-            coverage = (data_info['count'] / total_stocks) * 100
-            st.progress(coverage / 100)
-            st.caption(f"数据覆盖率: {coverage:.1f}%")
-            
-            # 显示最后更新时间
-            if data_info['latest_date']:
-                st.info(f"📅 最后更新: {data_info['latest_date'].strftime('%Y-%m-%d %H:%M:%S')}")
-                
-                # 判断是否需要更新
-                days_since_update = (pd.Timestamp.now() - pd.Timestamp(data_info['latest_date'])).days
-                if days_since_update > 1:
-                    st.warning(f"⚠️ 数据已 {days_since_update} 天未更新，建议及时更新")
-                elif days_since_update == 1:
-                    st.info("💡 数据为昨日数据，可以更新到最新")
-                else:
-                    st.success("✅ 数据为最新")
+            # 尝试获取最新更新时间
+            try:
+                log_file = AITRADER_PATH / "logs" / "update_20251028.log"
+                if log_file.exists():
+                    import time
+                    mtime = os.path.getmtime(log_file)
+                    update_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(mtime))
+                    st.info(f"📅 最近更新: {update_time}")
+            except:
+                pass
         else:
             st.warning("⚠️ 未检测到数据")
-            st.caption("请点击左侧'🚀 开始更新'按钮首次下载数据")
+            st.caption("请点击左侧'开始更新'按钮")
     
     st.divider()
     

@@ -10,8 +10,10 @@ import plotly.express as px
 from io import BytesIO
 from .cache_manager import cached_function, display_cache_controls, cache_manager
 
-# 尝试导入 pywencai，如果失败则提供降级方案
+# 尝试导入 pywencai，处理 py_mini_racer 的兼容性问题
 try:
+    import warnings
+    warnings.filterwarnings('ignore', category=DeprecationWarning)
     import pywencai
     HAS_PYWENCAI = True
 except Exception as e:
@@ -185,11 +187,11 @@ def setup_concept_analysis_styles():
 def get_market_data(date, query_type):
     """获取市场数据"""
     if not HAS_PYWENCAI:
-        st.error(f"❌ pywencai 模块不可用: {PYWENCAI_ERROR}")
-        st.info("💡 涨停概念分析功能需要 pywencai 库，但该库在当前系统上无法正常工作。")
-        st.warning("⚠️ 这是一个已知问题：py_mini_racer 在 macOS 上缺少原生库支持。")
+        st.error(f"❌ pywencai 模块不可用")
+        st.info("💡 涨停概念分析功能需要 pywencai 库")
+        st.warning("⚠️ 这是一个已知问题：py_mini_racer 在某些系统上存在兼容性问题")
         return None
-    
+
     query_map = {
         'limit_up': f"非ST，{date.strftime('%Y%m%d')}涨停",
         'limit_down': f"非ST,{date.strftime('%Y%m%d')}跌停",
@@ -379,7 +381,7 @@ def display_concept_analysis():
     st.markdown('<p class="subheader-text">📅 每日涨停概念分布统计</p>', unsafe_allow_html=True)
     
     # 分析按钮
-    if st.button("🚀 开始分析", type="primary", use_container_width=True):
+    if st.button("🚀 开始分析", type="primary", width="stretch"):
         
         # 调用近1个月涨停概念分析
         monthly_concept_df = analyze_monthly_concepts(selected_date)

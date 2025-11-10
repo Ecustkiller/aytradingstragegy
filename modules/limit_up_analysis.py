@@ -256,7 +256,7 @@ def display_limit_up_analysis():
         )
     
     with col2:
-        if st.button("🔍 开始分析", type="primary", use_container_width=True):
+        if st.button("🔍 开始分析", type="primary", width="stretch"):
             st.session_state.run_limit_up_analysis = True
     
     # 执行分析
@@ -317,7 +317,7 @@ def display_limit_up_analysis():
                         labels={'x': '连板数', 'y': '股票数量'}
                     )
                     fig.update_traces(marker_color='#e74c3c')
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
                 
                 # 显示连板股票列表
                 st.markdown("---")
@@ -328,7 +328,7 @@ def display_limit_up_analysis():
                 
                 st.dataframe(
                     continuous_df[display_columns].head(50),
-                    use_container_width=True,
+                    width="stretch",
                     height=400
                 )
         
@@ -346,7 +346,7 @@ def display_limit_up_analysis():
                     st.markdown("##### 📊 概念排行榜（Top 15）")
                     st.dataframe(
                         concept_counts.head(15),
-                        use_container_width=True,
+                        width="stretch",
                         height=400
                     )
                 
@@ -361,7 +361,7 @@ def display_limit_up_analysis():
                         color_continuous_scale='Reds'
                     )
                     fig.update_layout(height=400, showlegend=False)
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
         
         # 晋级率分析（需要前一日数据）
         if len(trade_dates_list) >= 2:
@@ -384,7 +384,7 @@ def display_limit_up_analysis():
                         
                         with col1:
                             st.markdown(f"##### 晋级率统计 ({previous_date} → {selected_date})")
-                            st.dataframe(promotion_df, use_container_width=True)
+                            st.dataframe(promotion_df, width="stretch")
                         
                         with col2:
                             st.markdown("##### 晋级率趋势图")
@@ -401,7 +401,7 @@ def display_limit_up_analysis():
                                 yaxis_title="晋级率 (%)",
                                 height=300
                             )
-                            st.plotly_chart(fig, use_container_width=True)
+                            st.plotly_chart(fig, width="stretch")
         
         # 下载按钮
         st.markdown("---")

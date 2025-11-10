@@ -106,7 +106,7 @@ def show_cache_details():
         if cache_files:
             import pandas as pd
             df = pd.DataFrame(cache_files)
-            st.dataframe(df, use_container_width=True)
+            st.dataframe(df, width="stretch")
         else:
             st.info("暂无缓存文件")
             

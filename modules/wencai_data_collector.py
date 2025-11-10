@@ -572,7 +572,7 @@ def display_wencai_collector():
                 st.dataframe(
                     preview_df, 
                     height=600,  # 增加高度
-                    use_container_width=True  # 使用容器全宽
+                    width="stretch"  # 使用容器全宽
                 )
             except Exception as e:
                 st.error(f"预览失败: {str(e)}")

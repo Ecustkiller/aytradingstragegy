@@ -209,7 +209,7 @@ def run_strategy(query, selected_date, market_cap):
     
     st.dataframe(
         df_display[available_columns],
-        use_container_width=True,
+        width="stretch",
         height=400
     )
     
@@ -226,7 +226,7 @@ def run_strategy(query, selected_date, market_cap):
             type_counts = df['竞价异动类型'].value_counts()
             fig = go.Figure(data=[go.Pie(labels=type_counts.index, values=type_counts.values)])
             fig.update_layout(height=300)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
         
         with col2:
             st.markdown("##### 集合竞价评级分布")
@@ -238,7 +238,7 @@ def run_strategy(query, selected_date, market_cap):
                     yaxis_title="股票数量",
                     height=300
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
     
     # 下载按钮
     st.markdown("---")
@@ -327,7 +327,7 @@ def display_auction_analysis():
         )
     
     with col2:
-        if st.button("🔍 开始分析", type="primary", use_container_width=True):
+        if st.button("🔍 开始分析", type="primary", width="stretch"):
             st.session_state.run_auction_analysis = True
     
     # 如果选择自定义查询

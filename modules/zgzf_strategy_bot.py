@@ -112,7 +112,7 @@ def display_zgzf_strategy():
         with col3:
             days = st.number_input("分析天数", min_value=60, max_value=500, value=250)
         
-        if st.button("🔍 开始分析", type="primary", use_container_width=True):
+        if st.button("🔍 开始分析", type="primary", width="stretch"):
             with st.spinner(f"正在获取 {symbol} 的数据..."):
                 end_date = datetime.now()
                 start_date = end_date - timedelta(days=days)
@@ -176,7 +176,7 @@ def display_zgzf_strategy():
                     display_cols.append('BBI')
                 
                 available_cols = [col for col in display_cols if col in df.columns]
-                st.dataframe(df[available_cols].tail(10), use_container_width=True)
+                st.dataframe(df[available_cols].tail(10), width="stretch")
     
     # 批量选股模式
     else:
@@ -259,7 +259,7 @@ def display_zgzf_strategy():
             with col2:
                 st.info(f"将获取最近 {days} 天的数据进行分析")
         
-        if st.button("🚀 开始批量选股", type="primary", use_container_width=True):
+        if st.button("🚀 开始批量选股", type="primary", width="stretch"):
             stock_data_dict = {}
             
             if data_from == "从本地数据":
@@ -407,7 +407,7 @@ def display_zgzf_strategy():
                             '最新价': '{:.2f}',
                             '涨幅%': '{:.2f}'
                         }),
-                        use_container_width=True,
+                        width="stretch",
                         height=400
                     )
                     

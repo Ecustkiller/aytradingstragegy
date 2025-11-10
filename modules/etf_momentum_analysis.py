@@ -381,7 +381,7 @@ def display_etf_momentum_analysis():
             st.success("缓存已清除")
     
     # 分析按钮
-    if st.button("🚀 开始ETF动量分析", type="primary", use_container_width=True):
+    if st.button("🚀 开始ETF动量分析", type="primary", width="stretch"):
         
         if not selected_etfs:
             st.warning("⚠️ 请至少选择一个ETF进行分析")
@@ -493,7 +493,7 @@ def display_etf_momentum_analysis():
         # 显示结果表格
         st.dataframe(
             df_results,
-            use_container_width=True,
+            width="stretch",
             hide_index=True
         )
         
@@ -534,7 +534,7 @@ def display_etf_momentum_analysis():
                 tabs = st.tabs([name for name, _ in charts])
                 for i, (etf_name, fig) in enumerate(charts):
                     with tabs[i]:
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width="stretch")
                         
                         # 显示该ETF的详细信息
                         etf_info = df_results[df_results['ETF名称'] == etf_name].iloc[0]
@@ -548,7 +548,7 @@ def display_etf_momentum_analysis():
             else:
                 # 只有一个图表时直接显示
                 etf_name, fig = charts[0]
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
         
         # 数据导出
         st.subheader("💾 数据导出")
@@ -567,7 +567,7 @@ def display_etf_momentum_analysis():
         
         with col2:
             # 实时行情查看
-            if st.button("📊 查看ETF实时行情", use_container_width=True):
+            if st.button("📊 查看ETF实时行情", width="stretch"):
                 try:
                     with st.spinner("获取实时行情数据..."):
                         spot_data = ak.fund_etf_spot_em()
@@ -579,7 +579,7 @@ def display_etf_momentum_analysis():
                         if not filtered_spot.empty:
                             st.dataframe(
                                 filtered_spot[["代码", "名称", "最新价", "涨跌幅", "成交量", "成交额"]],
-                                use_container_width=True,
+                                width="stretch",
                                 hide_index=True
                             )
                         else:

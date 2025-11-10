@@ -227,7 +227,7 @@ def display_index_rps_analysis():
     
     with col2:
         # 数据获取按钮
-        analyze_button = st.button("🚀 开始分析", type="primary", use_container_width=True)
+        analyze_button = st.button("🚀 开始分析", type="primary", width="stretch")
     
     if not periods:
         st.warning("⚠️ 请至少选择一个分析周期")
@@ -291,7 +291,7 @@ def display_index_rps_analysis():
             # 显示数据表格
             st.dataframe(
                 display_df,
-                use_container_width=True,
+                width="stretch",
                 height=600,
                 column_config={
                     "排名": st.column_config.NumberColumn("排名", width="small"),
@@ -318,7 +318,7 @@ def display_index_rps_analysis():
                     data=csv,
                     file_name=f"指数RPS排名_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
                     mime='text/csv',
-                    use_container_width=True
+                    width="stretch"
                 )
             
             with col2:
@@ -334,7 +334,7 @@ def display_index_rps_analysis():
                     data=excel_data,
                     file_name=f"指数RPS排名_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
                     mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                    use_container_width=True
+                    width="stretch"
                 )
             
             # 显示分析建议

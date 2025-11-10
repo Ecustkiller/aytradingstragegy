@@ -222,7 +222,7 @@ def display_buffett_indicator():
         fig.update_yaxes(title_text="点位", row=1, col=1)
         fig.update_yaxes(title_text="成交量", row=2, col=1)
         
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     
     st.markdown("---")
     
@@ -257,7 +257,7 @@ def display_buffett_indicator():
                     st.success(f"✅ 成功获取 {len(full_data)} 条历史记录")
                     
                     # 数据预览
-                    st.dataframe(full_data.tail(20), use_container_width=True)
+                    st.dataframe(full_data.tail(20), width="stretch")
                     
                     # 下载按钮
                     csv = full_data.to_csv(index=False, encoding='utf-8-sig')

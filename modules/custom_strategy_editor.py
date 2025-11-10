@@ -370,7 +370,7 @@ def display_custom_strategy_editor():
         )
 
         # 加载模板按钮
-        if st.button("📥 加载模板", use_container_width=True):
+        if st.button("📥 加载模板", width="stretch"):
             if selected_template != "空白模板":
                 st.session_state['strategy_code'] = STRATEGY_TEMPLATES[selected_template]
                 st.success(f"✅ 已加载：{selected_template}")
@@ -426,7 +426,7 @@ def display_custom_strategy_editor():
         # 运行回测按钮
         run_backtest_btn = st.button(
             "🚀 运行回测",
-            use_container_width=True,
+            width="stretch",
             type="primary"
         )
 
@@ -452,7 +452,7 @@ def display_custom_strategy_editor():
         # 代码验证按钮
         col_a, col_b, col_c = st.columns([1, 1, 2])
         with col_a:
-            if st.button("✅ 验证代码", use_container_width=True):
+            if st.button("✅ 验证代码", width="stretch"):
                 task, error = execute_strategy_code(strategy_code, data_source)
                 if error:
                     st.error(f"❌ {error}")
@@ -470,7 +470,7 @@ def display_custom_strategy_editor():
                         })
 
         with col_b:
-            if st.button("🗑️ 清空代码", use_container_width=True):
+            if st.button("🗑️ 清空代码", width="stretch"):
                 st.session_state['strategy_code'] = ""
                 st.rerun()
 
@@ -554,14 +554,14 @@ def display_backtest_results(result):
     # 格式化stats表格
     stats_display = stats.copy()
     stats_display = stats_display.round(4)
-    st.dataframe(stats_display, use_container_width=True)
+    st.dataframe(stats_display, width="stretch")
 
     # 交易记录
     st.markdown("#### 📝 交易记录")
 
     transactions = result.get_transactions()
     if not transactions.empty:
-        st.dataframe(transactions, use_container_width=True)
+        st.dataframe(transactions, width="stretch")
 
         # 下载按钮
         csv = transactions.to_csv(index=True).encode('utf-8-sig')

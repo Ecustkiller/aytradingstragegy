@@ -790,7 +790,7 @@ def display_market_sentiment_analysis():
         )
     
     with col3:
-        analyze_button = st.button("🚀 开始分析", type="primary", use_container_width=True)
+        analyze_button = st.button("🚀 开始分析", type="primary", width="stretch")
     
     # 数据获取和分析
     if analyze_button:
@@ -832,7 +832,7 @@ def display_market_sentiment_analysis():
             
             fig = create_sentiment_charts(df)
             if fig:
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
             
             # 生成操作建议
             generate_sentiment_advice(df)
@@ -850,7 +850,7 @@ def display_market_sentiment_analysis():
                     data=csv,
                     file_name=f"市场情绪分析_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
                     mime='text/csv',
-                    use_container_width=True
+                    width="stretch"
                 )
             
             with col2:
@@ -865,7 +865,7 @@ def display_market_sentiment_analysis():
                     data=excel_data,
                     file_name=f"市场情绪分析_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
                     mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                    use_container_width=True
+                    width="stretch"
                 )
 
 if __name__ == "__main__":
