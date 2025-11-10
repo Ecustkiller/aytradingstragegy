@@ -1,8 +1,9 @@
 """
-交易建议模块 - 根据技术指标分析给出交易建议
+交易建议模块 - 根据技术指标和峰级线趋势分析给出交易建议
 """
 import pandas as pd
 import numpy as np
+from .peak_valley_analyzer import peak_valley_analyzer
 
 def generate_trade_advice(market_status):
     """
@@ -157,23 +158,146 @@ def generate_trade_advice(market_status):
 
 def get_comprehensive_advice(df):
     """
-    获取综合交易建议
-    
+    获取综合交易建议（整合峰级线趋势分析）
+
     参数:
     df: 包含技术指标的DataFrame
-    
+
     返回:
     dict: 包含交易建议的字典
     """
     from .indicators import analyze_market_status
-    
+
     # 获取市场状态
     market_status = analyze_market_status(df)
-    
-    # 生成交易建议
+
+    # 生成基础交易建议
     advice = generate_trade_advice(market_status)
-    
+
+    # 获取峰级线趋势分析
+    try:
+        peak_valley_advice = peak_valley_analyzer.generate_trade_advice(df)
+
+        # 整合峰级线分析结果
+        advice = integrate_peak_valley_advice(advice, peak_valley_advice, market_status)
+    except Exception as e:
+        # 如果峰级线分析失败，仍然返回基础建议
+        print(f"峰级线分析失败: {e}")
+
     # 添加市场状态到建议中
     advice["market_status"] = market_status
-    
+
     return advice
+
+def integrate_peak_valley_advice(basic_advice, peak_valley_advice, market_status):
+    """
+    整合基础建议和峰级线建议
+
+    参数:
+    basic_advice: 基础技术指标建议
+    peak_valley_advice: 峰级线趋势建议
+    market_status: 市场状态
+
+    返回:
+    dict: 综合建议
+    """
+    # 提取峰级线建议信息
+    pv_action = peak_valley_advice.get('action', 'hold')
+    pv_confidence = peak_valley_advice.get('confidence', 0)
+    pv_description = peak_valley_advice.get('description', '')
+    pv_patterns = peak_valley_advice.get('patterns', [])
+    pv_trend = peak_valley_advice.get('trend', {})
+    support_levels = peak_valley_advice.get('support_levels', [])
+    resistance_levels = peak_valley_advice.get('resistance_levels', [])
+
+    # 提取基础建议信息
+    basic_action = basic_advice.get('action', '观望')
+    basic_position = basic_advice.get('position', 0)
+    basic_reason = basic_advice.get('reason', '')
+
+    # 动作映射
+    action_map = {
+        'buy': '买入',
+        'sell': '卖出',
+        'hold': '观望'
+    }
+    pv_action_cn = action_map.get(pv_action, '观望')
+
+    # 综合判断：峰级线分析优先级更高
+    final_action = basic_action
+    final_position = basic_position
+    final_reasons = [basic_reason] if basic_reason else []
+
+    # 如果峰级线有明确信号且置信度高，调整建议
+    if pv_confidence >= 0.7:
+        final_action = pv_action_cn
+
+        # 根据峰级线信号调整仓位
+        if pv_action == 'buy':
+            final_position = int(pv_confidence * 100)
+        elif pv_action == 'sell':
+            final_position = 0
+        else:
+            final_position = max(basic_position * 0.5, 30)  # 观望时保持轻仓
+
+    # 添加峰级线分析理由
+    peak_valley_reasons = []
+
+    # 趋势分析
+    if pv_trend:
+        trend_desc = pv_trend.get('description', '')
+        if trend_desc:
+            peak_valley_reasons.append(f"【趋势】{trend_desc}")
+
+    # 形态分析
+    if pv_patterns:
+        # 只显示最强的形态
+        best_pattern = max(pv_patterns, key=lambda x: x.get('confidence', 0))
+        pattern_name = best_pattern.get('pattern', '')
+        pattern_desc = best_pattern.get('description', '')
+        if pattern_name and pattern_desc:
+            peak_valley_reasons.append(f"【形态】{pattern_desc}")
+
+    # 支撑压力位分析
+    if support_levels or resistance_levels:
+        sr_info = []
+        if support_levels:
+            nearest_support = support_levels[0]
+            sr_info.append(f"支撑位 {nearest_support:.2f}")
+        if resistance_levels:
+            nearest_resistance = resistance_levels[0]
+            sr_info.append(f"压力位 {nearest_resistance:.2f}")
+        if sr_info:
+            peak_valley_reasons.append(f"【关键价位】{', '.join(sr_info)}")
+
+    # 整合所有理由
+    if peak_valley_reasons:
+        final_reasons = peak_valley_reasons + final_reasons
+
+    reason_text = "；".join(final_reasons) if final_reasons else "技术指标信号不明确，建议等待更清晰的市场方向"
+
+    # 构建最终建议
+    comprehensive_advice = {
+        "action": final_action,
+        "position": final_position,
+        "reason": reason_text,
+        "peak_valley_info": {
+            "support_levels": support_levels,
+            "resistance_levels": resistance_levels,
+            "trend": pv_trend,
+            "patterns": pv_patterns,
+            "confidence": pv_confidence
+        }
+    }
+
+    # 如果有明确的止损和止盈价位，添加到建议中
+    if 'stop_loss' in peak_valley_advice and peak_valley_advice['stop_loss']:
+        comprehensive_advice['stop_loss'] = peak_valley_advice['stop_loss']
+
+    if 'take_profit' in peak_valley_advice and peak_valley_advice['take_profit']:
+        comprehensive_advice['take_profit'] = peak_valley_advice['take_profit']
+
+    if 'entry_price' in peak_valley_advice and peak_valley_advice['entry_price']:
+        comprehensive_advice['entry_price'] = peak_valley_advice['entry_price']
+
+    return comprehensive_advice

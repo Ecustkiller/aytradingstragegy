@@ -1,12 +1,14 @@
 """
-可视化模块 - 负责创建图表和可视化
+可视化模块 - 负责创建图表和可视化（含峰级线分析）
 """
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from .peak_valley_analyzer import peak_valley_analyzer
 
-def create_plotly_chart(df, period, show_ma=False, show_boll=False, show_vol=False, 
-                        show_macd=False, show_kdj=False, show_rsi=False, data_source="AKShare"):
+def create_plotly_chart(df, period, show_ma=False, show_boll=False, show_vol=False,
+                        show_macd=False, show_kdj=False, show_rsi=False, data_source="AKShare",
+                        show_peak_valley=True):
     """
     创建Plotly交互式K线图和技术指标图表
     
@@ -214,7 +216,125 @@ def create_plotly_chart(df, period, show_ma=False, show_boll=False, show_vol=Fal
                 ),
                 row=1, col=1
                 )
-    
+
+    # 峰级线分析：添加峰点、谷点、支撑位、压力位
+    if show_peak_valley:
+        try:
+            # 识别峰谷点
+            df_marked = peak_valley_analyzer.identify_peaks_valleys(df)
+
+            # 获取支撑压力位
+            sr_levels = peak_valley_analyzer.calculate_support_resistance(df)
+
+            # 添加峰点标记
+            peaks = df_marked[df_marked['is_peak']]
+            if len(peaks) > 0:
+                peak_indices = [df_continuous[df_continuous.index == idx]['continuous_index'].values[0]
+                               for idx in peaks.index if idx in df_continuous.index]
+                peak_prices = peaks['peak_price'].dropna().values
+
+                if len(peak_indices) > 0:
+                    fig.add_trace(
+                        go.Scatter(
+                            x=peak_indices,
+                            y=peak_prices,
+                            mode='markers',
+                            marker=dict(
+                                symbol='triangle-down',
+                                size=10,
+                                color='red',
+                                line=dict(color='darkred', width=1)
+                            ),
+                            name='峰点',
+                            hovertemplate='<b>峰点</b><br>价格: %{y:.2f}<extra></extra>'
+                        ),
+                        row=1, col=1
+                    )
+
+            # 添加谷点标记
+            valleys = df_marked[df_marked['is_valley']]
+            if len(valleys) > 0:
+                valley_indices = [df_continuous[df_continuous.index == idx]['continuous_index'].values[0]
+                                 for idx in valleys.index if idx in df_continuous.index]
+                valley_prices = valleys['valley_price'].dropna().values
+
+                if len(valley_indices) > 0:
+                    fig.add_trace(
+                        go.Scatter(
+                            x=valley_indices,
+                            y=valley_prices,
+                            mode='markers',
+                            marker=dict(
+                                symbol='triangle-up',
+                                size=10,
+                                color='green',
+                                line=dict(color='darkgreen', width=1)
+                            ),
+                            name='谷点',
+                            hovertemplate='<b>谷点</b><br>价格: %{y:.2f}<extra></extra>'
+                        ),
+                        row=1, col=1
+                    )
+
+            # 添加压力位水平线
+            resistance_levels = sr_levels.get('resistance_levels', [])
+            for i, resistance in enumerate(resistance_levels[:3]):  # 只显示前3个
+                fig.add_shape(
+                    type="line",
+                    x0=0,
+                    x1=len(df_continuous) - 1,
+                    y0=resistance,
+                    y1=resistance,
+                    line=dict(
+                        color="rgba(255, 0, 0, 0.4)",
+                        width=1,
+                        dash="dash"
+                    ),
+                    row=1, col=1
+                )
+                # 添加标签
+                fig.add_annotation(
+                    x=len(df_continuous) - 1,
+                    y=resistance,
+                    text=f"压力 {resistance:.2f}",
+                    showarrow=False,
+                    xanchor="left",
+                    font=dict(size=9, color="red"),
+                    bgcolor="rgba(255, 255, 255, 0.7)",
+                    row=1, col=1
+                )
+
+            # 添加支撑位水平线
+            support_levels = sr_levels.get('support_levels', [])
+            for i, support in enumerate(support_levels[:3]):  # 只显示前3个
+                fig.add_shape(
+                    type="line",
+                    x0=0,
+                    x1=len(df_continuous) - 1,
+                    y0=support,
+                    y1=support,
+                    line=dict(
+                        color="rgba(0, 128, 0, 0.4)",
+                        width=1,
+                        dash="dash"
+                    ),
+                    row=1, col=1
+                )
+                # 添加标签
+                fig.add_annotation(
+                    x=len(df_continuous) - 1,
+                    y=support,
+                    text=f"支撑 {support:.2f}",
+                    showarrow=False,
+                    xanchor="left",
+                    font=dict(size=9, color="green"),
+                    bgcolor="rgba(255, 255, 255, 0.7)",
+                    row=1, col=1
+                )
+
+        except Exception as e:
+            print(f"峰级线分析失败: {e}")
+
     # 当前行
     current_row = 2
     

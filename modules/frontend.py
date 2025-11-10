@@ -419,32 +419,33 @@ def display_market_status(df):
         st.error(f"显示技术状态面板时出错: {str(e)}")
 
 def display_trade_advice(df, symbol):
-    """显示交易建议"""
+    """显示交易建议（含峰级线分析）"""
     if df is None or df.empty:
         return
-    
+
     try:
         # 获取交易建议
         advice = get_comprehensive_advice(df)
-        
+
         if not advice:
             st.warning("无法生成交易建议，请确保数据包含足够的历史记录")
             return
-        
+
         # 设置标题
-        st.markdown("<h3 style='margin-top:1rem;margin-bottom:0.5rem;'>💡 交易建议</h3>", unsafe_allow_html=True)
-        
+        st.markdown("<h3 style='margin-top:1rem;margin-bottom:0.5rem;'>💡 智能交易建议（峰级线趋势）</h3>", unsafe_allow_html=True)
+
         # 获取建议内容
         action = advice.get("action", "观望")
         position = advice.get("position", 0)
         reason = advice.get("reason", "无具体理由")
-        
+        peak_valley_info = advice.get("peak_valley_info", {})
+
         # 设置颜色
         action_color = "green" if action == "买入" else "red" if action == "卖出" else "#FFA500"  # 橙色用于观望
-        
+
         # 创建两列布局
         col1, col2 = st.columns([1, 3])
-        
+
         # 左侧显示建议和仓位
         with col1:
             # 创建一个带有颜色的卡片样式
@@ -463,7 +464,43 @@ def display_trade_advice(df, symbol):
             </div>
             """
             st.markdown(card_style, unsafe_allow_html=True)
-        
+
+            # 显示关键价位信息
+            support_levels = peak_valley_info.get('support_levels', [])
+            resistance_levels = peak_valley_info.get('resistance_levels', [])
+
+            if support_levels or resistance_levels:
+                current_price = df['Close'].iloc[-1]
+
+                price_info = f"""
+                <div style="
+                    background-color: #f0f8ff;
+                    border: 1px solid #4682b4;
+                    padding: 10px;
+                    border-radius: 5px;
+                    margin-top: 10px;
+                    font-size: 0.85rem;
+                ">
+                    <h4 style="margin:5px 0;color:#4682b4;">📍 关键价位</h4>
+                    <p style="margin:5px 0;"><strong>当前价:</strong> {current_price:.2f}</p>
+                """
+
+                if resistance_levels:
+                    price_info += f"<p style='margin:5px 0;color:red;'><strong>压力位:</strong> {', '.join([f'{r:.2f}' for r in resistance_levels[:3]])}</p>"
+
+                if support_levels:
+                    price_info += f"<p style='margin:5px 0;color:green;'><strong>支撑位:</strong> {', '.join([f'{s:.2f}' for s in support_levels[:3]])}</p>"
+
+                # 添加止损止盈信息
+                if 'stop_loss' in advice and advice['stop_loss']:
+                    price_info += f"<p style='margin:5px 0;color:#ff4444;'><strong>建议止损:</strong> {advice['stop_loss']:.2f}</p>"
+
+                if 'take_profit' in advice and advice['take_profit']:
+                    price_info += f"<p style='margin:5px 0;color:#44ff44;'><strong>建议止盈:</strong> {advice['take_profit']:.2f}</p>"
+
+                price_info += "</div>"
+                st.markdown(price_info, unsafe_allow_html=True)
+
         # 右侧显示建议理由
         with col2:
             # 创建一个理由卡片
@@ -472,23 +509,69 @@ def display_trade_advice(df, symbol):
                 background-color: #f8f9fa;
                 padding: 15px;
                 border-radius: 5px;
-                height: 100%;
             ">
                 <h4 style="margin-top:0;">分析理由:</h4>
-                <p>{reason}</p>
+                <p style="line-height: 1.8;">{reason}</p>
             </div>
             """
             st.markdown(reason_style, unsafe_allow_html=True)
-        
+
+            # 显示交易形态信息
+            patterns = peak_valley_info.get('patterns', [])
+            if patterns:
+                st.markdown("##### 📊 识别到的交易形态")
+
+                # 按置信度排序
+                patterns_sorted = sorted(patterns, key=lambda x: x.get('confidence', 0), reverse=True)
+
+                for i, pattern in enumerate(patterns_sorted[:3]):  # 只显示前3个
+                    pattern_name = pattern.get('pattern', '未知形态')
+                    pattern_type = pattern.get('type', 'neutral')
+                    pattern_confidence = pattern.get('confidence', 0) * 100
+                    pattern_desc = pattern.get('description', '')
+
+                    # 根据类型设置颜色
+                    badge_color = "#28a745" if pattern_type == 'bullish' else "#dc3545" if pattern_type == 'bearish' else "#6c757d"
+                    type_text = "看涨" if pattern_type == 'bullish' else "看跌" if pattern_type == 'bearish' else "中性"
+
+                    pattern_html = f"""
+                    <div style="
+                        background-color: {badge_color}15;
+                        border-left: 3px solid {badge_color};
+                        padding: 8px 12px;
+                        margin: 8px 0;
+                        border-radius: 4px;
+                    ">
+                        <strong style="color:{badge_color};">🎯 {pattern_name}</strong>
+                        <span style="
+                            background-color: {badge_color};
+                            color: white;
+                            padding: 2px 8px;
+                            border-radius: 10px;
+                            font-size: 0.75rem;
+                            margin-left: 8px;
+                        ">{type_text}</span>
+                        <span style="
+                            color: gray;
+                            font-size: 0.75rem;
+                            margin-left: 8px;
+                        ">置信度: {pattern_confidence:.0f}%</span>
+                        <p style="margin: 5px 0 0 0; font-size: 0.85rem; color: #555;">{pattern_desc}</p>
+                    </div>
+                    """
+                    st.markdown(pattern_html, unsafe_allow_html=True)
+
         # 添加免责声明
         st.markdown("""
         <div style="font-size: 0.7rem; color: gray; margin-top: 10px; text-align: center;">
-            免责声明: 以上建议仅基于技术指标分析，不构成投资建议。投资决策请结合基本面分析和个人风险承受能力。
+            免责声明: 以上建议基于峰级线趋势和技术指标分析，不构成投资建议。投资决策请结合基本面分析和个人风险承受能力。
         </div>
         """, unsafe_allow_html=True)
-        
+
     except Exception as e:
         st.error(f"显示交易建议时出错: {str(e)}")
+        import traceback
+        st.text(traceback.format_exc())
 
 def display_chart(df, params):
     """显示K线图和技术指标"""
