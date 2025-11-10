@@ -50,7 +50,19 @@ def main():
     print(f"当前参数: {params}")
     
     # 根据功能模式显示不同界面
-    if params["function_mode"] == "🚀 增强选股":
+    if params["function_mode"] == "💼 持仓监控":
+        # 显示持仓监控界面
+        try:
+            from .portfolio_monitor import display_portfolio_monitor
+            display_portfolio_monitor()
+        except ImportError as e:
+            pass
+        except Exception as e:
+            st.error(f"❌ 持仓监控功能出现错误: {str(e)}")
+            import traceback
+            st.text(traceback.format_exc())
+        return
+    elif params["function_mode"] == "🚀 增强选股":
         # 显示增强版选股界面
         try:
             from .enhanced_momentum_selector import display_enhanced_momentum_selector
