@@ -530,58 +530,36 @@ def display_portfolio_monitor():
             if pd.notna(row['盈亏比例']):
                 profit_pct = row['盈亏比例']
                 if profit_pct > 0:
-                    profit_info = f"<span style='color: #FF4444;'>盈 {profit_pct:+.2f}%</span>"
+                    profit_info = f"盈 {profit_pct:+.2f}%"
                 elif profit_pct < 0:
-                    profit_info = f"<span style='color: #00CC00;'>亏 {profit_pct:+.2f}%</span>"
+                    profit_info = f"亏 {profit_pct:+.2f}%"
             
-            # 卡片样式
-            card_style = f"""
-                background: {'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' if is_selected else '#f8f9fa'};
-                border: 2px solid {'#667eea' if is_selected else '#e0e0e0'};
-                border-radius: 8px;
-                padding: 12px;
-                margin-bottom: 8px;
-                cursor: pointer;
-                transition: all 0.3s ease;
-                box-shadow: {'0 4px 12px rgba(102, 126, 234, 0.3)' if is_selected else '0 2px 4px rgba(0,0,0,0.1)'};
-            """
-            
-            text_color = "white" if is_selected else "#333"
-            
-            # 显示卡片
-            st.markdown(f"""
-                <div style="{card_style}">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <div style="font-size: 16px; font-weight: bold; color: {text_color};">
-                                {stock_name}
-                            </div>
-                            <div style="font-size: 12px; color: {'rgba(255,255,255,0.8)' if is_selected else '#666'};">
-                                {stock_code}
-                            </div>
-                        </div>
-                        <div style="text-align: right;">
-                            <div style="font-size: 18px; font-weight: bold; color: {text_color};">
-                                {current_price:.2f}
-                            </div>
-                            <div style="font-size: 14px; color: {color};">
-                                {arrow} {change_pct:+.2f}%
-                            </div>
-                        </div>
-                    </div>
-                    {f'<div style="margin-top: 8px; font-size: 12px; color: {text_color};">{profit_info}</div>' if profit_info else ''}
+            # 简化的卡片样式，避免HTML标签问题
+            if is_selected:
+                st.markdown(f"""
+                📍 **{stock_name}** 
+                **{stock_code}** | ¥{current_price:.2f} {arrow}{change_pct:+.2f}%
+                {profit_info}
+                ---
+                """)
+            else:
+                # 使用按钮方式选择股票
+                button_label = f"{stock_name} ({stock_code}) ¥{current_price:.2f}"
+                if st.button(
+                    button_label,
+                    key=f"select_{stock_code}_{idx}",
+                    use_container_width=True,
+                    type="primary" if is_selected else "secondary"
+                ):
+                    st.session_state.selected_stock = stock_code
+                    st.rerun()
+                
+                # 显示涨跌和盈亏信息
+                st.markdown(f"""
+                <div style="text-align: center; font-size: 12px; color: {color};">
+                    {arrow} {change_pct:+.2f}% | {profit_info}
                 </div>
-            """, unsafe_allow_html=True)
-            
-            # 点击按钮（隐藏样式）
-            if st.button(
-                f"选择 {stock_name}",
-                key=f"select_{stock_code}_{idx}",
-                use_container_width=True,
-                type="primary" if is_selected else "secondary"
-            ):
-                st.session_state.selected_stock = stock_code
-                st.rerun()
+                """, unsafe_allow_html=True)
     
     # ========== 右侧：详情和分时图 ==========
     with right_col:

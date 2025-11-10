@@ -57,7 +57,6 @@ data_cache/
 
 # Streamlit
 .streamlit/secrets.toml
-.streamlit/config.toml
 
 # Temporary files
 temp_data_*/
