@@ -490,76 +490,185 @@ def display_portfolio_monitor():
     elif sort_option == "盈亏比例↑":
         filtered_df = filtered_df.sort_values('盈亏比例', ascending=True, na_position='last')
 
-    # 显示持仓列表
+    # 【左右分栏布局】类似同花顺的专业风格
     st.markdown("### 📋 持仓明细")
-
-    # 使用data_editor显示可编辑表格
-    display_df = filtered_df[[
-        '股票代码', '股票名称', '当前价', '涨跌额', '涨跌幅',
-        '成本价', '持仓数量', '持仓盈亏', '盈亏比例', '买入日期'
-    ]].copy()
-
-    # 为每行添加操作按钮
-    for idx, row in display_df.iterrows():
-        stock_code = row['股票代码']
-        stock_name = row['股票名称']
+    
+    # 初始化选中的股票
+    if 'selected_stock' not in st.session_state:
+        st.session_state.selected_stock = None
+    
+    # 创建左右分栏
+    left_col, right_col = st.columns([1, 2])
+    
+    # ========== 左侧：股票列表 ==========
+    with left_col:
+        st.markdown("#### 📊 股票列表")
         
-        # 创建展开区域用于编辑
-        with st.expander(f"📊 {stock_name} ({stock_code}) - 当前价: {row['当前价']:.2f} | 涨跌幅: {row['涨跌幅']:+.2f}%"):
-            col1, col2, col3 = st.columns([3, 3, 2])
+        # 为每只股票创建可点击的卡片
+        for idx, row in filtered_df.iterrows():
+            stock_code = row['股票代码']
+            stock_name = row['股票名称']
+            current_price = row['当前价']
+            change_pct = row['涨跌幅']
+            
+            # 判断是否为选中状态
+            is_selected = (st.session_state.selected_stock == stock_code)
+            
+            # 涨跌颜色
+            if change_pct > 0:
+                color = "#FF4444"
+                arrow = "↑"
+            elif change_pct < 0:
+                color = "#00CC00"
+                arrow = "↓"
+            else:
+                color = "#888888"
+                arrow = "—"
+            
+            # 盈亏信息
+            profit_info = ""
+            if pd.notna(row['盈亏比例']):
+                profit_pct = row['盈亏比例']
+                if profit_pct > 0:
+                    profit_info = f"<span style='color: #FF4444;'>盈 {profit_pct:+.2f}%</span>"
+                elif profit_pct < 0:
+                    profit_info = f"<span style='color: #00CC00;'>亏 {profit_pct:+.2f}%</span>"
+            
+            # 卡片样式
+            card_style = f"""
+                background: {'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' if is_selected else '#f8f9fa'};
+                border: 2px solid {'#667eea' if is_selected else '#e0e0e0'};
+                border-radius: 8px;
+                padding: 12px;
+                margin-bottom: 8px;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                box-shadow: {'0 4px 12px rgba(102, 126, 234, 0.3)' if is_selected else '0 2px 4px rgba(0,0,0,0.1)'};
+            """
+            
+            text_color = "white" if is_selected else "#333"
+            
+            # 显示卡片
+            st.markdown(f"""
+                <div style="{card_style}">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-size: 16px; font-weight: bold; color: {text_color};">
+                                {stock_name}
+                            </div>
+                            <div style="font-size: 12px; color: {'rgba(255,255,255,0.8)' if is_selected else '#666'};">
+                                {stock_code}
+                            </div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 18px; font-weight: bold; color: {text_color};">
+                                {current_price:.2f}
+                            </div>
+                            <div style="font-size: 14px; color: {color};">
+                                {arrow} {change_pct:+.2f}%
+                            </div>
+                        </div>
+                    </div>
+                    {f'<div style="margin-top: 8px; font-size: 12px; color: {text_color};">{profit_info}</div>' if profit_info else ''}
+                </div>
+            """, unsafe_allow_html=True)
+            
+            # 点击按钮（隐藏样式）
+            if st.button(
+                f"选择 {stock_name}",
+                key=f"select_{stock_code}_{idx}",
+                use_container_width=True,
+                type="primary" if is_selected else "secondary"
+            ):
+                st.session_state.selected_stock = stock_code
+                st.rerun()
+    
+    # ========== 右侧：详情和分时图 ==========
+    with right_col:
+        if st.session_state.selected_stock is None:
+            # 未选中任何股票
+            st.info("👈 请在左侧选择一只股票查看详情和分时图")
+        else:
+            selected_code = st.session_state.selected_stock
+            
+            # 获取选中股票的数据
+            selected_row = filtered_df[filtered_df['股票代码'] == selected_code].iloc[0]
+            stock_name = selected_row['股票名称']
+            
+            # 显示股票标题
+            st.markdown(f"#### 📈 {stock_name} ({selected_code})")
+            
+            # 详细信息卡片
+            with st.container():
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.metric(
+                        "当前价",
+                        f"{selected_row['当前价']:.2f}",
+                        f"{selected_row['涨跌额']:+.2f}"
+                    )
+                
+                with col2:
+                    st.metric(
+                        "涨跌幅",
+                        f"{selected_row['涨跌幅']:+.2f}%",
+                        delta_color="normal" if selected_row['涨跌幅'] >= 0 else "inverse"
+                    )
+                
+                with col3:
+                    if pd.notna(selected_row['盈亏比例']):
+                        st.metric(
+                            "持仓盈亏",
+                            f"{selected_row['盈亏比例']:+.2f}%",
+                            f"¥{selected_row['持仓盈亏']:+,.2f}" if pd.notna(selected_row['持仓盈亏']) else "",
+                            delta_color="normal" if selected_row['盈亏比例'] >= 0 else "inverse"
+                        )
+                    else:
+                        st.info("未设置成本")
+            
+            # 持仓信息
+            with st.expander("📊 持仓信息", expanded=True):
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    if pd.notna(selected_row['成本价']) and selected_row['成本价'] > 0:
+                        st.write(f"**成本价:** {selected_row['成本价']:.2f}")
+                    else:
+                        st.write("**成本价:** 未设置")
+                
+                with col2:
+                    if pd.notna(selected_row['持仓数量']) and selected_row['持仓数量'] > 0:
+                        st.write(f"**持仓数量:** {int(selected_row['持仓数量'])}")
+                    else:
+                        st.write("**持仓数量:** 未设置")
+                
+                with col3:
+                    if pd.notna(selected_row['买入日期']):
+                        st.write(f"**买入日期:** {selected_row['买入日期']}")
+                    else:
+                        st.write("**买入日期:** 未设置")
+            
+            # 操作按钮
+            col1, col2 = st.columns(2)
             
             with col1:
-                st.markdown("**实时行情**")
-                st.write(f"当前价: **{row['当前价']:.2f}**")
-                st.write(f"涨跌额: {row['涨跌额']:+.2f}")
-                st.write(f"涨跌幅: {row['涨跌幅']:+.2f}%")
+                if st.button("✏️ 编辑持仓信息", key=f"edit_{selected_code}", use_container_width=True):
+                    st.session_state[f'editing_{selected_code}'] = True
             
             with col2:
-                st.markdown("**持仓信息**")
-                if pd.notna(row['成本价']) and row['成本价'] > 0:
-                    st.write(f"成本价: {row['成本价']:.2f}")
-                else:
-                    st.write("成本价: 未设置")
-                
-                if pd.notna(row['持仓数量']) and row['持仓数量'] > 0:
-                    st.write(f"持仓数量: {int(row['持仓数量'])}")
-                else:
-                    st.write("持仓数量: 未设置")
-                
-                if pd.notna(row['盈亏比例']):
-                    profit_color = "🔴" if row['盈亏比例'] > 0 else "🟢"
-                    st.write(f"盈亏: {profit_color} {row['盈亏比例']:+.2f}%")
-            
-            with col3:
-                st.markdown("**操作**")
-                
-                # 查看分时图按钮
-                if HAS_INTRADAY_CHART:
-                    if st.button("📈 分时图", key=f"chart_{stock_code}_{idx}", use_container_width=True):
-                        st.session_state[f'show_chart_{stock_code}'] = not st.session_state.get(f'show_chart_{stock_code}', False)
-                
-                # 快速编辑按钮
-                if st.button("✏️ 编辑", key=f"edit_{stock_code}_{idx}", use_container_width=True):
-                    st.session_state[f'editing_{stock_code}'] = True
-                
-                # 删除按钮
-                if st.button("🗑️ 删除", key=f"del_{stock_code}_{idx}", use_container_width=True):
-                    remove_stock_from_portfolio(stock_code)
+                if st.button("🗑️ 删除此股票", key=f"del_{selected_code}", use_container_width=True, type="secondary"):
+                    remove_stock_from_portfolio(selected_code)
+                    st.session_state.selected_stock = None
                     st.rerun()
             
-            # 显示分时图
-            if HAS_INTRADAY_CHART and st.session_state.get(f'show_chart_{stock_code}', False):
-                st.markdown("---")
-                st.markdown("**📈 实时分时图**")
-                display_intraday_chart(stock_code, stock_name)
-            
             # 编辑表单
-            if st.session_state.get(f'editing_{stock_code}', False):
+            if st.session_state.get(f'editing_{selected_code}', False):
                 st.markdown("---")
-                st.markdown("**编辑持仓信息**")
+                st.markdown("**✏️ 编辑持仓信息**")
                 
-                with st.form(f"edit_form_{stock_code}_{idx}"):
-                    stock_info = portfolio[stock_code]
+                with st.form(f"edit_form_{selected_code}"):
+                    stock_info = portfolio[selected_code]
                     
                     col_a, col_b, col_c = st.columns(3)
                     
@@ -569,7 +678,7 @@ def display_portfolio_monitor():
                             value=float(stock_info.get('buy_price', 0)),
                             min_value=0.0,
                             step=0.01,
-                            key=f"price_{stock_code}_{idx}"
+                            key=f"price_{selected_code}"
                         )
                     
                     with col_b:
@@ -578,7 +687,7 @@ def display_portfolio_monitor():
                             value=int(stock_info.get('quantity', 0)),
                             min_value=0,
                             step=100,
-                            key=f"qty_{stock_code}_{idx}"
+                            key=f"qty_{selected_code}"
                         )
                     
                     with col_c:
@@ -586,7 +695,7 @@ def display_portfolio_monitor():
                             "买入日期",
                             value=datetime.strptime(stock_info['buy_date'], '%Y-%m-%d').date()
                                   if stock_info.get('buy_date') else datetime.now(),
-                            key=f"date_{stock_code}_{idx}"
+                            key=f"date_{selected_code}"
                         )
                     
                     col_save, col_cancel = st.columns(2)
@@ -594,18 +703,26 @@ def display_portfolio_monitor():
                     with col_save:
                         if st.form_submit_button("💾 保存", use_container_width=True):
                             update_stock_info(
-                                stock_code,
+                                selected_code,
                                 edit_price if edit_price > 0 else None,
                                 edit_quantity if edit_quantity > 0 else None,
                                 edit_date
                             )
-                            st.session_state[f'editing_{stock_code}'] = False
+                            st.session_state[f'editing_{selected_code}'] = False
                             st.rerun()
                     
                     with col_cancel:
                         if st.form_submit_button("❌ 取消", use_container_width=True):
-                            st.session_state[f'editing_{stock_code}'] = False
+                            st.session_state[f'editing_{selected_code}'] = False
                             st.rerun()
+            
+            # 分时图
+            if HAS_INTRADAY_CHART:
+                st.markdown("---")
+                st.markdown("**📈 实时分时图**")
+                display_intraday_chart(selected_code, stock_name)
+            else:
+                st.warning("⚠️ 分时图功能未启用")
 
     # 自动刷新
     if auto_refresh:
