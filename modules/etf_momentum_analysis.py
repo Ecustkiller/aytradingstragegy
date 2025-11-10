@@ -534,7 +534,7 @@ def display_etf_momentum_analysis():
                 tabs = st.tabs([name for name, _ in charts])
                 for i, (etf_name, fig) in enumerate(charts):
                     with tabs[i]:
-                        st.plotly_chart(fig, width="stretch")
+                        st.plotly_chart(fig, use_container_width=True)
                         
                         # 显示该ETF的详细信息
                         etf_info = df_results[df_results['ETF名称'] == etf_name].iloc[0]
@@ -548,7 +548,7 @@ def display_etf_momentum_analysis():
             else:
                 # 只有一个图表时直接显示
                 etf_name, fig = charts[0]
-                st.plotly_chart(fig, width="stretch")
+                st.plotly_chart(fig, use_container_width=True)
         
         # 数据导出
         st.subheader("💾 数据导出")

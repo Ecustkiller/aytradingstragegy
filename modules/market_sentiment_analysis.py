@@ -832,7 +832,7 @@ def display_market_sentiment_analysis():
             
             fig = create_sentiment_charts(df)
             if fig:
-                st.plotly_chart(fig, width="stretch")
+                st.plotly_chart(fig, use_container_width=True)
             
             # 生成操作建议
             generate_sentiment_advice(df)

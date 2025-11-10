@@ -22,7 +22,9 @@ class FilteredStderr:
             'DeprecationWarning',
             'punycode',
             'node:',
-            'Use `node --trace-deprecation'
+            'Use `node --trace-deprecation',
+            'keyword arguments have been deprecated',
+            'Use config instead'
         ]
 
     def write(self, text):

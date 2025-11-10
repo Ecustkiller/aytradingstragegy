@@ -317,7 +317,7 @@ def display_limit_up_analysis():
                         labels={'x': '连板数', 'y': '股票数量'}
                     )
                     fig.update_traces(marker_color='#e74c3c')
-                    st.plotly_chart(fig, width="stretch")
+                    st.plotly_chart(fig, use_container_width=True)
                 
                 # 显示连板股票列表
                 st.markdown("---")
@@ -361,7 +361,7 @@ def display_limit_up_analysis():
                         color_continuous_scale='Reds'
                     )
                     fig.update_layout(height=400, showlegend=False)
-                    st.plotly_chart(fig, width="stretch")
+                    st.plotly_chart(fig, use_container_width=True)
         
         # 晋级率分析（需要前一日数据）
         if len(trade_dates_list) >= 2:
@@ -401,7 +401,7 @@ def display_limit_up_analysis():
                                 yaxis_title="晋级率 (%)",
                                 height=300
                             )
-                            st.plotly_chart(fig, width="stretch")
+                            st.plotly_chart(fig, use_container_width=True)
         
         # 下载按钮
         st.markdown("---")

@@ -226,7 +226,7 @@ def run_strategy(query, selected_date, market_cap):
             type_counts = df['竞价异动类型'].value_counts()
             fig = go.Figure(data=[go.Pie(labels=type_counts.index, values=type_counts.values)])
             fig.update_layout(height=300)
-            st.plotly_chart(fig, width="stretch")
+            st.plotly_chart(fig, use_container_width=True)
         
         with col2:
             st.markdown("##### 集合竞价评级分布")
@@ -238,7 +238,7 @@ def run_strategy(query, selected_date, market_cap):
                     yaxis_title="股票数量",
                     height=300
                 )
-                st.plotly_chart(fig, width="stretch")
+                st.plotly_chart(fig, use_container_width=True)
     
     # 下载按钮
     st.markdown("---")

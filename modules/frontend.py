@@ -511,7 +511,7 @@ def display_chart(df, params):
         
         if chart is not None:
             # 显示图表
-            st.plotly_chart(chart, width="stretch")
+            st.plotly_chart(chart, use_container_width=True)
         else:
             st.error("无法创建图表，请检查数据格式是否正确")
     except Exception as e:

@@ -222,7 +222,7 @@ def display_buffett_indicator():
         fig.update_yaxes(title_text="点位", row=1, col=1)
         fig.update_yaxes(title_text="成交量", row=2, col=1)
         
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, use_container_width=True)
     
     st.markdown("---")
     
