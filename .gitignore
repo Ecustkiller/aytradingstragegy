@@ -19,21 +19,13 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
 
-# Streamlit (保留config.toml)
-.streamlit/secrets.toml
-
-# 数据缓存
-data_cache/
-*.pkl
-*.xlsx
-temp_data_*/
-stock_data_*.xlsx
-
-# 股票数据（保留目录但不提交CSV文件）
-data/stock_data/*.csv
-!data/stock_data/.gitkeep
-!data/stock_data/README.md
+# Virtual Environment
+venv/
+ENV/
+env/
+.venv
 
 # IDE
 .vscode/
@@ -41,16 +33,39 @@ data/stock_data/*.csv
 *.swp
 *.swo
 *~
-
-# OS
 .DS_Store
-Thumbs.db
 
-# Logs
-*.log
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Data
+data/
+quotes/
+*.csv
+*.h5
+*.hdf5
 logs/
+*.log
 
-# Binary files
+# Stock Data
+~/stock_data/
+
+# Cache
+.cache/
+*.cache
+data_cache/
+
+# Streamlit
+.streamlit/secrets.toml
+.streamlit/config.toml
+
+# Temporary files
+temp_data_*/
+stock_data_*.xlsx
 *.dmg
-*.exe
-*.app
+
+# Others
+*.pid
+*.bak
+*.tmp
+

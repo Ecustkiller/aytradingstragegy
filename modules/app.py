@@ -125,6 +125,19 @@ def main():
         except Exception as e:
             st.error(f"❌ AI策略回测功能出现错误: {str(e)}")
         return
+    elif params["function_mode"] == "📝 自定义策略":
+        # 显示自定义策略编辑器界面
+        try:
+            from .custom_strategy_editor import display_custom_strategy_editor
+            display_custom_strategy_editor()
+        except ImportError as e:
+            st.error("❌ 自定义策略编辑器模块加载失败")
+            st.info(f"错误详情: {e}")
+        except Exception as e:
+            st.error(f"❌ 自定义策略编辑器功能出现错误: {str(e)}")
+            import traceback
+            st.text(traceback.format_exc())
+        return
     elif params["function_mode"] == "💾 AI数据管理":
         # 显示AI Trader数据管理界面
         try:
