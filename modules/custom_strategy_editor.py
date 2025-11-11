@@ -456,6 +456,29 @@ def run_backtest_with_tushare(task):
                     # Tushare使用YYYYMMDD格式
                     df = get_stock_data_tushare(symbol, start_date, end_date, 'daily')
                     if df is not None and not df.empty:
+                        # 重置索引，将Date从索引转为列
+                        df = df.reset_index()
+                        
+                        # 标准化列名为CSV加载器期望的格式
+                        column_mapping = {
+                            'Date': 'date',
+                            'Open': 'open', 
+                            'High': 'high',
+                            'Low': 'low',
+                            'Close': 'close',
+                            'Volume': 'volume'
+                        }
+                        df = df.rename(columns=column_mapping)
+                        
+                        # 确保date列是datetime类型
+                        df['date'] = pd.to_datetime(df['date'])
+                        
+                        # 添加symbol列
+                        df['symbol'] = symbol
+                        
+                        # 只保留CSV加载器期望的列
+                        df = df[['date', 'open', 'high', 'low', 'close', 'volume', 'symbol']]
+                        
                         # 保存为CSV文件
                         csv_file = temp_path / f"{symbol}.csv"
                         df.to_csv(csv_file, index=False)
