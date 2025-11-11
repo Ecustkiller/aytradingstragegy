@@ -333,13 +333,19 @@ def run_backtest_with_akshare(task):
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
             
-            # 获取任务中的股票列表
+# 获取任务中的股票列表
             symbols = getattr(task, 'symbols', [])
             if not symbols:
                 return None, "❌ 策略中未设置股票代码"
             
             # 下载所有股票数据
-            for symbol in symbols:
+            all_symbols = symbols.copy()
+            
+            # 添加基准指数到下载列表
+            if hasattr(task, 'benchmark') and task.benchmark and task.benchmark not in all_symbols:
+                all_symbols.append(task.benchmark)
+            
+            for symbol in all_symbols:
                 try:
                     start_date = task.start_date
                     end_date = task.end_date
@@ -353,11 +359,21 @@ def run_backtest_with_akshare(task):
                         # 保存为CSV文件
                         csv_file = temp_path / f"{symbol}.csv"
                         df.to_csv(csv_file, index=False)
+                        
+                        print(f"✅ 已下载 {symbol} 数据: {len(df)} 条记录")
                     else:
-                        return None, f"❌ 无法获取股票 {symbol} 的数据"
+                        # 如果是基准数据下载失败，发出警告但不中断回测
+                        if symbol == task.benchmark:
+                            print(f"⚠️ 警告：无法获取基准指数 {symbol} 的数据，将使用无基准回测")
+                        else:
+                            return None, f"❌ 无法获取股票 {symbol} 的数据"
                         
                 except Exception as e:
-                    return None, f"❌ 下载股票 {symbol} 数据失败: {str(e)}"
+                    # 如果是基准数据下载失败，发出警告但不中断回测
+                    if symbol == task.benchmark:
+                        print(f"⚠️ 警告：下载基准指数 {symbol} 数据失败: {str(e)}，将使用无基准回测")
+                    else:
+                        return None, f"❌ 下载股票 {symbol} 数据失败: {str(e)}"
             
             # 使用临时数据目录运行回测
             engine = Engine(path=str(temp_path))
@@ -383,13 +399,19 @@ def run_backtest_with_ashare(task):
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
             
-            # 获取任务中的股票列表
+# 获取任务中的股票列表
             symbols = getattr(task, 'symbols', [])
             if not symbols:
                 return None, "❌ 策略中未设置股票代码"
             
             # 下载所有股票数据
-            for symbol in symbols:
+            all_symbols = symbols.copy()
+            
+            # 添加基准指数到下载列表
+            if hasattr(task, 'benchmark') and task.benchmark and task.benchmark not in all_symbols:
+                all_symbols.append(task.benchmark)
+            
+            for symbol in all_symbols:
                 try:
                     start_date = task.start_date
                     end_date = task.end_date
@@ -403,11 +425,21 @@ def run_backtest_with_ashare(task):
                         # 保存为CSV文件
                         csv_file = temp_path / f"{symbol}.csv"
                         df.to_csv(csv_file, index=False)
+                        
+                        print(f"✅ 已下载 {symbol} 数据: {len(df)} 条记录")
                     else:
-                        return None, f"❌ 无法获取股票 {symbol} 的数据"
+                        # 如果是基准数据下载失败，发出警告但不中断回测
+                        if symbol == task.benchmark:
+                            print(f"⚠️ 警告：无法获取基准指数 {symbol} 的数据，将使用无基准回测")
+                        else:
+                            return None, f"❌ 无法获取股票 {symbol} 的数据"
                         
                 except Exception as e:
-                    return None, f"❌ 下载股票 {symbol} 数据失败: {str(e)}"
+                    # 如果是基准数据下载失败，发出警告但不中断回测
+                    if symbol == task.benchmark:
+                        print(f"⚠️ 警告：下载基准指数 {symbol} 数据失败: {str(e)}，将使用无基准回测")
+                    else:
+                        return None, f"❌ 下载股票 {symbol} 数据失败: {str(e)}"
             
             # 使用临时数据目录运行回测
             engine = Engine(path=str(temp_path))
@@ -447,8 +479,14 @@ def run_backtest_with_tushare(task):
             except:
                 return None, "❌ Tushare未安装或配置错误"
             
-            # 下载所有股票数据
-            for symbol in symbols:
+# 下载所有股票数据
+            all_symbols = symbols.copy()
+            
+            # 添加基准指数到下载列表
+            if hasattr(task, 'benchmark') and task.benchmark and task.benchmark not in all_symbols:
+                all_symbols.append(task.benchmark)
+            
+            for symbol in all_symbols:
                 try:
                     start_date = task.start_date
                     end_date = task.end_date
@@ -482,11 +520,21 @@ def run_backtest_with_tushare(task):
                         # 保存为CSV文件
                         csv_file = temp_path / f"{symbol}.csv"
                         df.to_csv(csv_file, index=False)
+                        
+                        print(f"✅ 已下载 {symbol} 数据: {len(df)} 条记录")
                     else:
-                        return None, f"❌ 无法获取股票 {symbol} 的数据"
+                        # 如果是基准数据下载失败，发出警告但不中断回测
+                        if symbol == task.benchmark:
+                            print(f"⚠️ 警告：无法获取基准指数 {symbol} 的数据，将使用无基准回测")
+                        else:
+                            return None, f"❌ 无法获取股票 {symbol} 的数据"
                         
                 except Exception as e:
-                    return None, f"❌ 下载股票 {symbol} 数据失败: {str(e)}"
+                    # 如果是基准数据下载失败，发出警告但不中断回测
+                    if symbol == task.benchmark:
+                        print(f"⚠️ 警告：下载基准指数 {symbol} 数据失败: {str(e)}，将使用无基准回测")
+                    else:
+                        return None, f"❌ 下载股票 {symbol} 数据失败: {str(e)}"
             
             # 使用临时数据目录运行回测
             engine = Engine(path=str(temp_path))
