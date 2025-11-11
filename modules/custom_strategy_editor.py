@@ -271,23 +271,45 @@ def run_backtest_with_task(task, data_source='csv', data_path=None):
     try:
         from bt_engine import Engine
         import os
+        from pathlib import Path
 
         # 确定数据路径
         if data_path is None:
             if data_source == 'csv':
-                # 使用本地数据
-                home_dir = Path.home()
-                data_path = home_dir / "stock_data"
+                # 按优先级检查数据路径
+                project_root = Path(__file__).parent.parent
+                possible_paths = [
+                    project_root / "data" / "stock_data",  # 项目数据目录
+                    Path.home() / "stock_data",          # 用户目录
+                    project_root / "data" / "quotes",    # 项目quotes目录
+                    "quotes"                             # 相对路径
+                ]
+                
+                data_path = None
+                for path in possible_paths:
+                    if path.exists() and len(list(path.glob("*.csv"))) > 0:
+                        data_path = path
+                        break
+                
+                # 如果都不存在，使用项目目录
+                if data_path is None:
+                    data_path = project_root / "data" / "stock_data"
+                    
             else:
                 data_path = 'quotes'  # 其他数据源路径
 
-        if not os.path.exists(data_path):
-            return None, f"数据路径不存在: {data_path}"
+        # 检查路径是否存在
+        if isinstance(data_path, str):
+            if not os.path.exists(data_path):
+                return None, f"数据路径不存在: {data_path}"
+        else:
+            if not data_path.exists():
+                return None, f"数据路径不存在: {data_path}"
 
         # 创建引擎并运行
         engine = Engine(path=str(data_path))
 
-        # 设置手续费（万分之2.5）
+# 设置手续费（万分之2.5）
         commissions = lambda q, p: max(5, abs(q) * p * 0.00025)
 
         result = engine.run(task, commissions=commissions)
@@ -296,6 +318,162 @@ def run_backtest_with_task(task, data_source='csv', data_path=None):
 
     except Exception as e:
         error_msg = f"回测执行错误：\n{traceback.format_exc()}"
+        return None, error_msg
+
+
+def run_backtest_with_akshare(task):
+    """使用AKShare数据运行回测"""
+    try:
+        from bt_engine import Engine
+        from modules.data_loader import get_stock_data_ak
+        import pandas as pd
+        import tempfile
+        from pathlib import Path
+        
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            
+            # 获取任务中的股票列表
+            symbols = getattr(task, 'symbols', [])
+            if not symbols:
+                return None, "❌ 策略中未设置股票代码"
+            
+            # 下载所有股票数据
+            for symbol in symbols:
+                try:
+                    start_date = task.start_date
+                    end_date = task.end_date
+                    
+                    # 转换日期格式
+                    start = f"{start_date[:4]}-{start_date[4:6]}-{start_date[6:]}"
+                    end = f"{end_date[:4]}-{end_date[4:6]}-{end_date[6:]}"
+                    
+                    df = get_stock_data_ak(symbol, start, end, 'daily')
+                    if df is not None and not df.empty:
+                        # 保存为CSV文件
+                        csv_file = temp_path / f"{symbol}.csv"
+                        df.to_csv(csv_file, index=False)
+                    else:
+                        return None, f"❌ 无法获取股票 {symbol} 的数据"
+                        
+                except Exception as e:
+                    return None, f"❌ 下载股票 {symbol} 数据失败: {str(e)}"
+            
+            # 使用临时数据目录运行回测
+            engine = Engine(path=str(temp_path))
+            commissions = lambda q, p: max(5, abs(q) * p * 0.00025)
+            result = engine.run(task, commissions=commissions)
+            
+            return result, None
+            
+    except Exception as e:
+        error_msg = f"AKShare回测执行错误：\n{traceback.format_exc()}"
+        return None, error_msg
+
+
+def run_backtest_with_ashare(task):
+    """使用Ashare实时数据运行回测"""
+    try:
+        from bt_engine import Engine
+        from modules.data_loader import get_stock_data_ashare
+        import pandas as pd
+        import tempfile
+        from pathlib import Path
+        
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            
+            # 获取任务中的股票列表
+            symbols = getattr(task, 'symbols', [])
+            if not symbols:
+                return None, "❌ 策略中未设置股票代码"
+            
+            # 下载所有股票数据
+            for symbol in symbols:
+                try:
+                    start_date = task.start_date
+                    end_date = task.end_date
+                    
+                    # 转换日期格式
+                    start = f"{start_date[:4]}-{start_date[4:6]}-{start_date[6:]}"
+                    end = f"{end_date[:4]}-{end_date[4:6]}-{end_date[6:]}"
+                    
+                    df = get_stock_data_ashare(symbol, start, end, 'daily')
+                    if df is not None and not df.empty:
+                        # 保存为CSV文件
+                        csv_file = temp_path / f"{symbol}.csv"
+                        df.to_csv(csv_file, index=False)
+                    else:
+                        return None, f"❌ 无法获取股票 {symbol} 的数据"
+                        
+                except Exception as e:
+                    return None, f"❌ 下载股票 {symbol} 数据失败: {str(e)}"
+            
+            # 使用临时数据目录运行回测
+            engine = Engine(path=str(temp_path))
+            commissions = lambda q, p: max(5, abs(q) * p * 0.00025)
+            result = engine.run(task, commissions=commissions)
+            
+            return result, None
+            
+    except Exception as e:
+        error_msg = f"Ashare回测执行错误：\n{traceback.format_exc()}"
+        return None, error_msg
+
+
+def run_backtest_with_tushare(task):
+    """使用Tushare数据运行回测"""
+    try:
+        from bt_engine import Engine
+        from modules.data_loader import get_stock_data_tushare
+        import pandas as pd
+        import tempfile
+        from pathlib import Path
+        
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            
+            # 获取任务中的股票列表
+            symbols = getattr(task, 'symbols', [])
+            if not symbols:
+                return None, "❌ 策略中未设置股票代码"
+            
+            # 检查Tushare配置
+            try:
+                # 这里可能需要检查tushare token是否配置
+                import tushare as ts
+                if not hasattr(ts, 'set_token') or ts.get_token() == '':
+                    return None, "❌ Tushare Token未配置，请在设置中配置Tushare Token"
+            except:
+                return None, "❌ Tushare未安装或配置错误"
+            
+            # 下载所有股票数据
+            for symbol in symbols:
+                try:
+                    start_date = task.start_date
+                    end_date = task.end_date
+                    
+                    # Tushare使用YYYYMMDD格式
+                    df = get_stock_data_tushare(symbol, start_date, end_date, 'daily')
+                    if df is not None and not df.empty:
+                        # 保存为CSV文件
+                        csv_file = temp_path / f"{symbol}.csv"
+                        df.to_csv(csv_file, index=False)
+                    else:
+                        return None, f"❌ 无法获取股票 {symbol} 的数据"
+                        
+                except Exception as e:
+                    return None, f"❌ 下载股票 {symbol} 数据失败: {str(e)}"
+            
+            # 使用临时数据目录运行回测
+            engine = Engine(path=str(temp_path))
+            commissions = lambda q, p: max(5, abs(q) * p * 0.00025)
+            result = engine.run(task, commissions=commissions)
+            
+            return result, None
+            
+    except Exception as e:
+        error_msg = f"Tushare回测执行错误：\n{traceback.format_exc()}"
         return None, error_msg
 
 
@@ -492,15 +670,21 @@ def display_custom_strategy_editor():
             task.end_date = end_date.strftime('%Y%m%d')
             task.benchmark = benchmark
 
-            # 执行回测
+# 执行回测
             if data_source == 'csv':
-                data_path = Path.home() / "stock_data"
+                # 使用改进的数据路径检测
+                result, error = run_backtest_with_task(task, data_source)
             else:
-                # TODO: 支持其他数据源
-                st.warning("⚠️ 当前仅支持本地CSV数据源，其他数据源开发中...")
-                data_path = Path.home() / "stock_data"
-
-            result, error = run_backtest_with_task(task, data_source, data_path)
+                # 其他数据源实现
+                if data_source == 'akshare':
+                    result, error = run_backtest_with_akshare(task)
+                elif data_source == 'ashare':
+                    result, error = run_backtest_with_ashare(task)
+                elif data_source == 'tushare':
+                    result, error = run_backtest_with_tushare(task)
+                else:
+                    st.warning("⚠️ 暂不支持该数据源，使用本地CSV数据")
+                    result, error = run_backtest_with_task(task, 'csv')
 
             if error:
                 st.error(f"❌ 回测失败：\n{error}")
