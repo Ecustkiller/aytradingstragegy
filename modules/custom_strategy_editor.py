@@ -17,6 +17,35 @@ AITRADER_PATH = Path(__file__).parent.parent / "aitrader_core"
 if str(AITRADER_PATH) not in sys.path:
     sys.path.insert(0, str(AITRADER_PATH))
 
+# 导入AI Trader核心模块
+try:
+    from bt_engine import Task, Engine
+except ImportError:
+    st.error("❌ 无法导入AI Trader核心模块，请检查aitrader_core目录")
+    Task = None
+    Engine = None
+
+# 导入数据加载模块
+try:
+    from modules.data_loader import get_stock_data_ak, get_stock_data_ashare, get_stock_data_tushare
+except ImportError:
+    st.warning("⚠️ 无法导入数据加载模块，在线数据源可能不可用")
+    get_stock_data_ak = None
+    get_stock_data_ashare = None
+    get_stock_data_tushare = None
+
+# 导入其他需要的模块
+import tempfile
+import os
+
+# 可选依赖导入
+try:
+    import tushare as ts
+    TUSHARE_AVAILABLE = True
+except ImportError:
+    ts = None
+    TUSHARE_AVAILABLE = False
+
 
 # 策略模板库
 STRATEGY_TEMPLATES = {
@@ -224,8 +253,9 @@ def execute_strategy_code(code_str, data_source='csv'):
         if not isinstance(strategy_params, dict):
             return None, "错误：handle_data() 必须返回字典类型"
 
-        # 构建Task对象
-        from bt_engine import Task
+# 构建Task对象
+        if Task is None:
+            return None, "❌ AI Trader核心模块未正确加载"
 
         task = Task()
         task.symbols = context.symbols
@@ -267,11 +297,11 @@ def run_backtest_with_task(task, data_source='csv', data_path=None):
 
     Returns:
         tuple: (回测结果, 错误信息)
-    """
+"""
     try:
-        from bt_engine import Engine
+        if Engine is None:
+            return None, "❌ AI Trader核心模块未正确加载"
         import os
-        from pathlib import Path
 
         # 确定数据路径
         if data_path is None:
@@ -324,11 +354,10 @@ def run_backtest_with_task(task, data_source='csv', data_path=None):
 def run_backtest_with_akshare(task):
     """使用AKShare数据运行回测"""
     try:
-        from bt_engine import Engine
+        if Engine is None:
+            return None, "❌ AI Trader核心模块未正确加载"
         from modules.data_loader import get_stock_data_ak
-        import pandas as pd
         import tempfile
-        from pathlib import Path
         
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -390,11 +419,10 @@ def run_backtest_with_akshare(task):
 def run_backtest_with_ashare(task):
     """使用Ashare实时数据运行回测"""
     try:
-        from bt_engine import Engine
+        if Engine is None:
+            return None, "❌ AI Trader核心模块未正确加载"
         from modules.data_loader import get_stock_data_ashare
-        import pandas as pd
         import tempfile
-        from pathlib import Path
         
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -456,11 +484,10 @@ def run_backtest_with_ashare(task):
 def run_backtest_with_tushare(task):
     """使用Tushare数据运行回测"""
     try:
-        from bt_engine import Engine
+        if Engine is None:
+            return None, "❌ AI Trader核心模块未正确加载"
         from modules.data_loader import get_stock_data_tushare
-        import pandas as pd
         import tempfile
-        from pathlib import Path
         
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -470,14 +497,11 @@ def run_backtest_with_tushare(task):
             if not symbols:
                 return None, "❌ 策略中未设置股票代码"
             
-            # 检查Tushare配置
-            try:
-                # 这里可能需要检查tushare token是否配置
-                import tushare as ts
-                if not hasattr(ts, 'set_token') or ts.get_token() == '':
-                    return None, "❌ Tushare Token未配置，请在设置中配置Tushare Token"
-            except:
+# 检查Tushare配置
+            if not TUSHARE_AVAILABLE or ts is None:
                 return None, "❌ Tushare未安装或配置错误"
+            if not hasattr(ts, 'set_token') or ts.get_token() == '':
+                return None, "❌ Tushare Token未配置，请在设置中配置Tushare Token"
             
 # 下载所有股票数据
             all_symbols = symbols.copy()
