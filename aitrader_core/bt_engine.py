@@ -5,6 +5,7 @@ import bt
 import numpy as np
 import pandas as pd
 from bt import Algo
+from loguru import logger
 
 
 class SelectTopK(bt.AlgoStack):
@@ -231,6 +232,12 @@ class Engine:
         bkts = [bkt]
         for bench in [task.benchmark]:
             df = CsvDataLoader().read_df([bench])
+            
+            # 检查基准数据是否为空
+            if df.empty or 'date' not in df.columns:
+                logger.warning(f"基准数据 {bench} 不存在或格式不正确，跳过基准对比")
+                continue
+            
             df.set_index('date',inplace=True)
             df.index = pd.to_datetime(df.index)
             data = df.pivot_table(values='close', index=df.index, columns='symbol')
