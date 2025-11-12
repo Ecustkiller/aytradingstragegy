@@ -63,6 +63,11 @@ class CsvDataLoader:
             if df is not None:
                 dfs.append(df)
 
+        if not dfs:
+            # 如果没有找到任何数据文件，返回空的DataFrame而不是报错
+            logger.warning(f"未找到符号 {symbols} 的数据文件")
+            return pd.DataFrame()
+        
         df = pd.concat(dfs, axis=0)
         df.sort_values(by='date', ascending=True, inplace=True)
         df = df[df['date'] >= start_date]
