@@ -70,8 +70,14 @@ WEBHOOK_URL = ""  # 企业微信Webhook地址（可选）
 
 # 初始化 Tushare API
 try:
-    # 从环境变量或配置文件读取 Token
-    tushare_token = os.environ.get('TUSHARE_TOKEN', 'ad56243b601d82fd5c4aaf04b72d4d9d567401898d46c20f4d905d59')
+    # 从环境变量读取 Token
+    tushare_token = os.environ.get('TUSHARE_TOKEN')
+    if not tushare_token:
+        logger.error("❌ TUSHARE_TOKEN 环境变量未设置，请在 .env 文件中配置")
+        print("❌ 错误：TUSHARE_TOKEN 环境变量未设置")
+        print("请参考 .env.example 文件配置环境变量")
+        sys.exit(1)
+    
     pro = ts.pro_api(tushare_token)
     logger.info("✅ Tushare API 初始化成功")
 except Exception as e:

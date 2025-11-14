@@ -260,15 +260,21 @@ elif 7日涨幅 > 25%: score × 0.6
 
 ### Tushare Token配置
 
-已预配置Token:
-```python
-TUSHARE_TOKEN = "ad56243b601d82fd5c4aaf04b72d4d9d567401898d46c20f4d905d59"
+**重要**：为了安全，Token已改为通过环境变量配置。
+
+1. 复制环境变量示例文件：
+```bash
+cp .env.example .env
 ```
 
-如需更换,修改:
+2. 编辑 `.env` 文件，填入你的 Tushare Token：
 ```bash
-aitrader_core/datafeed/tushare_loader.py
+TUSHARE_TOKEN=your_tushare_token_here
 ```
+
+3. 获取 Token：访问 [https://tushare.pro/register](https://tushare.pro/register) 注册并获取
+
+**注意**：`.env` 文件已加入 `.gitignore`，不会被提交到 Git 仓库
 
 ### 添加自定义策略
 

@@ -58,6 +58,11 @@ data_cache/
 # Streamlit
 .streamlit/secrets.toml
 
+# Environment variables
+.env
+.env.local
+.env.*.local
+
 # Temporary files
 temp_data_*/
 stock_data_*.xlsx

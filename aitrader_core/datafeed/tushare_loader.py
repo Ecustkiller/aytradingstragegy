@@ -9,231 +9,272 @@ Tushare数据加载器
 import pandas as pd
 import tushare as ts
 from loguru import logger
+import sys
+from pathlib import Path
+from typing import Optional
 
-# Tushare Token配置
-TUSHARE_TOKEN = "ad56243b601d82fd5c4aaf04b72d4d9d567401898d46c20f4d905d59"
+# 添加项目根目录到路径
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
 
-# 初始化Tushare
+from aitrader_core.datafeed.base_datasource import BaseDataSource
+
 try:
-    ts.set_token(TUSHARE_TOKEN)
-    pro = ts.pro_api()
-    logger.info("✅ Tushare API初始化成功")
-except Exception as e:
-    logger.error(f"❌ Tushare API初始化失败: {e}")
-    pro = None
+    from modules.config_manager import Config
+    TUSHARE_TOKEN = Config.get_tushare_token()
+except ImportError:
+    # 如果配置模块不可用，尝试从环境变量获取
+    import os
+    TUSHARE_TOKEN = os.getenv('TUSHARE_TOKEN')
+    if not TUSHARE_TOKEN:
+        logger.error("❌ Tushare Token未配置，请设置TUSHARE_TOKEN环境变量")
 
 
-def convert_code(symbol):
-    """
-    转换股票代码格式
-    从 '600519.SH' 转为 '600519.SH' (Tushare格式相同)
-    """
-    return symbol
-
-
-def get_stock_data(symbol, start_date='20150101', end_date='20231231'):
-    """
-    获取股票日线数据
+class TushareDataSource(BaseDataSource):
+    """Tushare数据源适配器"""
     
-    参数:
-        symbol: 股票代码 (如 '600519.SH')
-        start_date: 开始日期 (格式: '20150101')
-        end_date: 结束日期
+    def __init__(self):
+        self.pro = None
+        super().__init__(name="Tushare")
     
-    返回:
-        DataFrame: 包含date, open, high, low, close, volume等字段
-    """
-    if pro is None:
-        logger.error("Tushare API未初始化")
-        return None
-    
-    try:
-        ts_code = convert_code(symbol)
+    def _initialize(self) -> bool:
+        """初始化Tushare API"""
+        try:
+            if TUSHARE_TOKEN:
+                ts.set_token(TUSHARE_TOKEN)
+                self.pro = ts.pro_api()
+                self._is_available = True
+                logger.info("✅ Tushare API初始化成功")
+                return True
+            else:
+                self._is_available = False
+                logger.warning("⚠️ Tushare Token未配置，Tushare数据源不可用")
+                return False
+        except Exception as e:
+            self._is_available = False
+            logger.error(f"❌ Tushare API初始化失败: {e}")
+            return False
+
+
+    def get_stock_data(
+        self,
+        symbol: str,
+        start_date: str,
+        end_date: str,
+        **kwargs
+    ) -> Optional[pd.DataFrame]:
+        """
+        获取股票日线数据
         
-        # 获取日线数据
-        df = pro.daily(
-            ts_code=ts_code,
-            start_date=start_date,
-            end_date=end_date
-        )
+        Args:
+            symbol: 股票代码 (如 '600519.SH')
+            start_date: 开始日期 (格式: 'YYYY-MM-DD' 或 'YYYYMMDD')
+            end_date: 结束日期
         
-        if df is None or len(df) == 0:
-            logger.warning(f"未获取到 {symbol} 的数据")
+        Returns:
+            DataFrame: 标准格式数据
+        """
+        if not self._is_available:
+            logger.error("[Tushare] API未初始化")
             return None
         
-        # 重命名列以匹配项目标准格式
-        df = df.rename(columns={
-            'trade_date': 'date',
-            'vol': 'volume'
-        })
-        
-        # 转换日期格式
-        df['date'] = pd.to_datetime(df['date'], format='%Y%m%d')
-        
-        # 排序
-        df = df.sort_values('date').reset_index(drop=True)
-        
-        # 添加symbol列
-        df['symbol'] = symbol
-        
-        # 选择需要的列
-        df = df[['date', 'open', 'high', 'low', 'close', 'volume', 'symbol']]
-        
-        logger.info(f"✅ 成功获取 {symbol} 数据: {len(df)} 条记录")
-        return df
-        
-    except Exception as e:
-        logger.error(f"获取 {symbol} 数据失败: {e}")
-        return None
+        try:
+            # 标准化日期格式
+            start_date = self.normalize_date(start_date, '%Y%m%d')
+            end_date = self.normalize_date(end_date, '%Y%m%d')
+            
+            # 获取日线数据
+            df = self.pro.daily(
+                ts_code=symbol,
+                start_date=start_date,
+                end_date=end_date
+            )
+            
+            if df is None or len(df) == 0:
+                logger.warning(f"[Tushare] 未获取到 {symbol} 的数据")
+                return None
+            
+            # 重命名列以匹配项目标准格式
+            df = df.rename(columns={
+                'trade_date': 'date',
+                'vol': 'volume'
+            })
+            
+            # 转换日期格式
+            df['date'] = pd.to_datetime(df['date'], format='%Y%m%d')
+            
+            # 标准化DataFrame
+            df = self.standardize_dataframe(df, symbol)
+            
+            logger.info(f"[Tushare] ✅ 成功获取 {symbol} 数据: {len(df)} 条记录")
+            return df
+            
+        except Exception as e:
+            logger.error(f"[Tushare] 获取 {symbol} 数据失败: {e}")
+            return None
 
+
+    def get_index_data(
+        self,
+        symbol: str,
+        start_date: str,
+        end_date: str,
+        **kwargs
+    ) -> Optional[pd.DataFrame]:
+        """
+        获取指数日线数据
+        
+        Args:
+            symbol: 指数代码 (如 '000001.SH')
+            start_date: 开始日期
+            end_date: 结束日期
+        
+        Returns:
+            DataFrame: 标准格式数据
+        """
+        if not self._is_available:
+            logger.error("[Tushare] API未初始化")
+            return None
+        
+        try:
+            # 标准化日期格式
+            start_date = self.normalize_date(start_date, '%Y%m%d')
+            end_date = self.normalize_date(end_date, '%Y%m%d')
+            
+            # 获取指数日线数据
+            df = self.pro.index_daily(
+                ts_code=symbol,
+                start_date=start_date,
+                end_date=end_date
+            )
+            
+            if df is None or len(df) == 0:
+                logger.warning(f"[Tushare] 未获取到指数 {symbol} 的数据")
+                return None
+            
+            # 重命名和处理
+            df = df.rename(columns={
+                'trade_date': 'date',
+                'vol': 'volume'
+            })
+            
+            df['date'] = pd.to_datetime(df['date'], format='%Y%m%d')
+            
+            # 标准化DataFrame
+            df = self.standardize_dataframe(df, symbol)
+            
+            logger.info(f"[Tushare] ✅ 成功获取指数 {symbol} 数据: {len(df)} 条记录")
+            return df
+            
+        except Exception as e:
+            logger.error(f"[Tushare] 获取指数 {symbol} 数据失败: {e}")
+            return None
+
+
+    def get_fund_data(
+        self,
+        symbol: str,
+        start_date: str,
+        end_date: str,
+        **kwargs
+    ) -> Optional[pd.DataFrame]:
+        """
+        获取ETF基金日线数据
+        
+        Args:
+            symbol: 基金代码 (如 '518880.SH')
+            start_date: 开始日期
+            end_date: 结束日期
+        
+        Returns:
+            DataFrame: 标准格式数据
+        """
+        if not self._is_available:
+            logger.error("[Tushare] API未初始化")
+            return None
+        
+        try:
+            # 标准化日期格式
+            start_date = self.normalize_date(start_date, '%Y%m%d')
+            end_date = self.normalize_date(end_date, '%Y%m%d')
+            
+            # 获取基金日线数据
+            df = self.pro.fund_daily(
+                ts_code=symbol,
+                start_date=start_date,
+                end_date=end_date
+            )
+            
+            if df is None or len(df) == 0:
+                logger.warning(f"[Tushare] 未获取到基金 {symbol} 的数据")
+                return None
+            
+            # 重命名和处理
+            df = df.rename(columns={
+                'trade_date': 'date',
+                'vol': 'volume'
+            })
+            
+            df['date'] = pd.to_datetime(df['date'], format='%Y%m%d')
+            
+            # 标准化DataFrame
+            df = self.standardize_dataframe(df, symbol)
+            
+            logger.info(f"[Tushare] ✅ 成功获取基金 {symbol} 数据: {len(df)} 条记录")
+            return df
+            
+        except Exception as e:
+            logger.error(f"[Tushare] 获取基金 {symbol} 数据失败: {e}")
+            return None
+
+
+
+
+# ==================== 向后兼容的全局实例和函数 ====================
+
+# 创建全局实例
+_tushare_instance = TushareDataSource()
+
+# 向后兼容的函数
+def get_stock_data(symbol, start_date='20150101', end_date='20231231'):
+    """向后兼容的函数"""
+    return _tushare_instance.get_stock_data(symbol, start_date, end_date)
 
 def get_index_data(symbol, start_date='20150101', end_date='20231231'):
-    """
-    获取指数日线数据
-    
-    参数:
-        symbol: 指数代码 (如 '510300.SH')
-        start_date: 开始日期
-        end_date: 结束日期
-    
-    返回:
-        DataFrame
-    """
-    if pro is None:
-        logger.error("Tushare API未初始化")
-        return None
-    
-    try:
-        ts_code = convert_code(symbol)
-        
-        # 获取指数日线数据
-        df = pro.index_daily(
-            ts_code=ts_code,
-            start_date=start_date,
-            end_date=end_date
-        )
-        
-        if df is None or len(df) == 0:
-            logger.warning(f"未获取到指数 {symbol} 的数据")
-            return None
-        
-        # 重命名和处理
-        df = df.rename(columns={
-            'trade_date': 'date',
-            'vol': 'volume'
-        })
-        
-        df['date'] = pd.to_datetime(df['date'], format='%Y%m%d')
-        df = df.sort_values('date').reset_index(drop=True)
-        df['symbol'] = symbol
-        
-        df = df[['date', 'open', 'high', 'low', 'close', 'volume', 'symbol']]
-        
-        logger.info(f"✅ 成功获取指数 {symbol} 数据: {len(df)} 条记录")
-        return df
-        
-    except Exception as e:
-        logger.error(f"获取指数 {symbol} 数据失败: {e}")
-        return None
-
+    """向后兼容的函数"""
+    return _tushare_instance.get_index_data(symbol, start_date, end_date)
 
 def get_fund_data(symbol, start_date='20150101', end_date='20231231'):
-    """
-    获取ETF基金日线数据
-    
-    参数:
-        symbol: 基金代码 (如 '518880.SH')
-        start_date: 开始日期
-        end_date: 结束日期
-    
-    返回:
-        DataFrame
-    """
-    if pro is None:
-        logger.error("Tushare API未初始化")
-        return None
-    
-    try:
-        ts_code = convert_code(symbol)
-        
-        # 获取基金日线数据
-        df = pro.fund_daily(
-            ts_code=ts_code,
-            start_date=start_date,
-            end_date=end_date
-        )
-        
-        if df is None or len(df) == 0:
-            logger.warning(f"未获取到基金 {symbol} 的数据")
-            return None
-        
-        # 重命名和处理
-        df = df.rename(columns={
-            'trade_date': 'date',
-            'vol': 'volume'
-        })
-        
-        df['date'] = pd.to_datetime(df['date'], format='%Y%m%d')
-        df = df.sort_values('date').reset_index(drop=True)
-        df['symbol'] = symbol
-        
-        df = df[['date', 'open', 'high', 'low', 'close', 'volume', 'symbol']]
-        
-        logger.info(f"✅ 成功获取基金 {symbol} 数据: {len(df)} 条记录")
-        return df
-        
-    except Exception as e:
-        logger.error(f"获取基金 {symbol} 数据失败: {e}")
-        return None
-
+    """向后兼容的函数"""
+    return _tushare_instance.get_fund_data(symbol, start_date, end_date)
 
 def get_data_auto(symbol, start_date='20150101', end_date='20231231'):
-    """
-    自动识别类型并获取数据
-    优先尝试: ETF基金 -> 股票 -> 指数
-    
-    参数:
-        symbol: 代码
-        start_date: 开始日期
-        end_date: 结束日期
-    
-    返回:
-        DataFrame
-    """
-    # 1. 尝试ETF基金
-    df = get_fund_data(symbol, start_date, end_date)
-    if df is not None and len(df) > 0:
-        return df
-    
-    # 2. 尝试股票
-    df = get_stock_data(symbol, start_date, end_date)
-    if df is not None and len(df) > 0:
-        return df
-    
-    # 3. 尝试指数
-    df = get_index_data(symbol, start_date, end_date)
-    if df is not None and len(df) > 0:
-        return df
-    
-    logger.error(f"无法获取 {symbol} 的数据 (尝试了基金/股票/指数)")
-    return None
+    """向后兼容的函数"""
+    return _tushare_instance.get_data_auto(symbol, start_date, end_date)
+
+# 向后兼容的pro对象
+pro = _tushare_instance.pro if _tushare_instance._is_available else None
 
 
 if __name__ == "__main__":
     # 测试
     print("测试Tushare数据加载器...")
+    print(f"数据源状态: {_tushare_instance}")
     
-    # 测试ETF
-    df = get_data_auto('518880.SH', start_date='20200101', end_date='20231231')
-    if df is not None:
-        print(f"\n✅ 黄金ETF数据:")
-        print(df.head())
-        print(f"共 {len(df)} 条记录")
-    
-    # 测试股票
-    df = get_data_auto('600519.SH', start_date='20200101', end_date='20231231')
-    if df is not None:
-        print(f"\n✅ 贵州茅台数据:")
-        print(df.head())
-        print(f"共 {len(df)} 条记录")
+    if _tushare_instance.is_available():
+        # 测试ETF
+        df = get_data_auto('518880.SH', start_date='20200101', end_date='20231231')
+        if df is not None:
+            print(f"\n✅ 黄金ETF数据:")
+            print(df.head())
+            print(f"共 {len(df)} 条记录")
+        
+        # 测试股票
+        df = get_data_auto('600519.SH', start_date='20200101', end_date='20231231')
+        if df is not None:
+            print(f"\n✅ 贵州茅台数据:")
+            print(df.head())
+            print(f"共 {len(df)} 条记录")
+    else:
+        print("❌ Tushare数据源不可用，请检查Token配置")
 

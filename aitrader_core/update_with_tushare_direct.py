@@ -11,8 +11,12 @@ from pathlib import Path
 from datetime import datetime, timedelta
 import time
 
-# Tushare Token
-TUSHARE_TOKEN = os.environ.get('TUSHARE_TOKEN', 'ad56243b601d82fd5c4aaf04b72d4d9d567401898d46c20f4d905d59')
+# Tushare Token - 从环境变量读取
+TUSHARE_TOKEN = os.environ.get('TUSHARE_TOKEN')
+if not TUSHARE_TOKEN:
+    print("❌ 错误：TUSHARE_TOKEN 环境变量未设置")
+    print("请在 .env 文件中配置 TUSHARE_TOKEN")
+    print("参考 .env.example 文件")
 
 def get_stock_data_dir():
     """获取数据目录"""
@@ -169,8 +173,7 @@ def update_data_direct(progress_callback=None, log_callback=None):
                 # API限流优化 (2000积分用户: 2000次/分钟)
                 # 2000积分 = 2000次/分钟 = 60秒/2000次 = 0.03秒/次
                 # 为了安全起见，设置为 0.04秒/次 (约1500次/分钟)
-                time.sleep(0.04)  # 约1500次/分钟，留有安全余量
-                
+                time.sleep(0.04)  # 约1500次
             except Exception as e:
                 error_count += 1
                 if error_count <= 5:

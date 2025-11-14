@@ -1,9 +1,23 @@
 from datetime import datetime
+import os
+import sys
+from pathlib import Path
 
 import pandas as pd
 from loguru import logger
 
-from config import DATA_DIR
+# 添加项目根目录到路径
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
+try:
+    from modules.config_manager import Config
+    DATA_DIR = Path(Config.STOCK_DATA_DIR)
+except ImportError:
+    # 如果配置模块不可用，使用默认路径
+    DATA_DIR = Path.home() / "stock_data"
+    if not DATA_DIR.exists():
+        DATA_DIR = project_root / "data" / "stock_data"
 
 
 class CsvDataLoader:
