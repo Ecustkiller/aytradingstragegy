@@ -389,18 +389,34 @@ def run_backtest_with_akshare(task):
                         csv_file = temp_path / f"{symbol}.csv"
                         df.to_csv(csv_file, index=False)
                         
-                        print(f"✅ 已下载 {symbol} 数据: {len(df)} 条记录")
+                        # 使用logger记录
+                        try:
+                            from .logger_config import get_logger
+                            logger = get_logger(__name__)
+                            logger.info(f"✅ 已下载 {symbol} 数据: {len(df)} 条记录")
+                        except ImportError:
+                            print(f"✅ 已下载 {symbol} 数据: {len(df)} 条记录")
                     else:
                         # 如果是基准数据下载失败，发出警告但不中断回测
                         if symbol == task.benchmark:
-                            print(f"⚠️ 警告：无法获取基准指数 {symbol} 的数据，将使用无基准回测")
+                            try:
+                                from .logger_config import get_logger
+                                logger = get_logger(__name__)
+                                logger.warning(f"⚠️ 警告：无法获取基准指数 {symbol} 的数据，将使用无基准回测")
+                            except ImportError:
+                                print(f"⚠️ 警告：无法获取基准指数 {symbol} 的数据，将使用无基准回测")
                         else:
                             return None, f"❌ 无法获取股票 {symbol} 的数据"
                         
                 except Exception as e:
                     # 如果是基准数据下载失败，发出警告但不中断回测
                     if symbol == task.benchmark:
-                        print(f"⚠️ 警告：下载基准指数 {symbol} 数据失败: {str(e)}，将使用无基准回测")
+                        try:
+                            from .logger_config import get_logger
+                            logger = get_logger(__name__)
+                            logger.warning(f"⚠️ 警告：下载基准指数 {symbol} 数据失败: {str(e)}，将使用无基准回测")
+                        except ImportError:
+                            print(f"⚠️ 警告：下载基准指数 {symbol} 数据失败: {str(e)}，将使用无基准回测")
                     else:
                         return None, f"❌ 下载股票 {symbol} 数据失败: {str(e)}"
             
@@ -454,18 +470,34 @@ def run_backtest_with_ashare(task):
                         csv_file = temp_path / f"{symbol}.csv"
                         df.to_csv(csv_file, index=False)
                         
-                        print(f"✅ 已下载 {symbol} 数据: {len(df)} 条记录")
+                        # 使用logger记录
+                        try:
+                            from .logger_config import get_logger
+                            logger = get_logger(__name__)
+                            logger.info(f"✅ 已下载 {symbol} 数据: {len(df)} 条记录")
+                        except ImportError:
+                            print(f"✅ 已下载 {symbol} 数据: {len(df)} 条记录")
                     else:
                         # 如果是基准数据下载失败，发出警告但不中断回测
                         if symbol == task.benchmark:
-                            print(f"⚠️ 警告：无法获取基准指数 {symbol} 的数据，将使用无基准回测")
+                            try:
+                                from .logger_config import get_logger
+                                logger = get_logger(__name__)
+                                logger.warning(f"⚠️ 警告：无法获取基准指数 {symbol} 的数据，将使用无基准回测")
+                            except ImportError:
+                                print(f"⚠️ 警告：无法获取基准指数 {symbol} 的数据，将使用无基准回测")
                         else:
                             return None, f"❌ 无法获取股票 {symbol} 的数据"
                         
                 except Exception as e:
                     # 如果是基准数据下载失败，发出警告但不中断回测
                     if symbol == task.benchmark:
-                        print(f"⚠️ 警告：下载基准指数 {symbol} 数据失败: {str(e)}，将使用无基准回测")
+                        try:
+                            from .logger_config import get_logger
+                            logger = get_logger(__name__)
+                            logger.warning(f"⚠️ 警告：下载基准指数 {symbol} 数据失败: {str(e)}，将使用无基准回测")
+                        except ImportError:
+                            print(f"⚠️ 警告：下载基准指数 {symbol} 数据失败: {str(e)}，将使用无基准回测")
                     else:
                         return None, f"❌ 下载股票 {symbol} 数据失败: {str(e)}"
             
@@ -545,18 +577,34 @@ def run_backtest_with_tushare(task):
                         csv_file = temp_path / f"{symbol}.csv"
                         df.to_csv(csv_file, index=False)
                         
-                        print(f"✅ 已下载 {symbol} 数据: {len(df)} 条记录")
+                        # 使用logger记录
+                        try:
+                            from .logger_config import get_logger
+                            logger = get_logger(__name__)
+                            logger.info(f"✅ 已下载 {symbol} 数据: {len(df)} 条记录")
+                        except ImportError:
+                            print(f"✅ 已下载 {symbol} 数据: {len(df)} 条记录")
                     else:
                         # 如果是基准数据下载失败，发出警告但不中断回测
                         if symbol == task.benchmark:
-                            print(f"⚠️ 警告：无法获取基准指数 {symbol} 的数据，将使用无基准回测")
+                            try:
+                                from .logger_config import get_logger
+                                logger = get_logger(__name__)
+                                logger.warning(f"⚠️ 警告：无法获取基准指数 {symbol} 的数据，将使用无基准回测")
+                            except ImportError:
+                                print(f"⚠️ 警告：无法获取基准指数 {symbol} 的数据，将使用无基准回测")
                         else:
                             return None, f"❌ 无法获取股票 {symbol} 的数据"
                         
                 except Exception as e:
                     # 如果是基准数据下载失败，发出警告但不中断回测
                     if symbol == task.benchmark:
-                        print(f"⚠️ 警告：下载基准指数 {symbol} 数据失败: {str(e)}，将使用无基准回测")
+                        try:
+                            from .logger_config import get_logger
+                            logger = get_logger(__name__)
+                            logger.warning(f"⚠️ 警告：下载基准指数 {symbol} 数据失败: {str(e)}，将使用无基准回测")
+                        except ImportError:
+                            print(f"⚠️ 警告：下载基准指数 {symbol} 数据失败: {str(e)}，将使用无基准回测")
                     else:
                         return None, f"❌ 下载股票 {symbol} 数据失败: {str(e)}"
             

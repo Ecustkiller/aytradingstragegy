@@ -33,15 +33,24 @@ PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 log_dir = os.path.join(PROJECT_ROOT, 'logs')
 os.makedirs(log_dir, exist_ok=True)
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(os.path.join(log_dir, 'daily_update.log')),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger(__name__)
+# 尝试使用统一的logger配置
+try:
+    sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+    from modules.logger_config import get_logger
+    logger = get_logger(__name__)
+    USE_LOGGER = True
+except ImportError:
+    # 回退到标准logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(os.path.join(log_dir, 'daily_update.log')),
+            logging.StreamHandler()
+        ]
+    )
+    logger = logging.getLogger(__name__)
+    USE_LOGGER = False
 
 # 配置参数
 # 优先级：环境变量 > 项目目录 > 用户目录
@@ -73,9 +82,10 @@ try:
     # 从环境变量读取 Token
     tushare_token = os.environ.get('TUSHARE_TOKEN')
     if not tushare_token:
-        logger.error("❌ TUSHARE_TOKEN 环境变量未设置，请在 .env 文件中配置")
-        print("❌ 错误：TUSHARE_TOKEN 环境变量未设置")
-        print("请参考 .env.example 文件配置环境变量")
+        error_msg = "❌ 错误：TUSHARE_TOKEN 环境变量未设置\n请参考 .env.example 文件配置环境变量"
+        logger.error(error_msg)
+        if not USE_LOGGER:
+            print(error_msg)
         sys.exit(1)
     
     pro = ts.pro_api(tushare_token)
@@ -89,23 +99,29 @@ def get_latest_trading_date():
     try:
         # 使用 Tushare 获取交易日历（直接调用，不设置超时）
         today = datetime.now().strftime('%Y%m%d')
-        logger.info(f"🔍 正在获取交易日历（截止{today}）...")
-        print(f"🔍 正在获取交易日历（截止{today}）...")
-        sys.stdout.flush()
+        msg = f"🔍 正在获取交易日历（截止{today}）..."
+        logger.info(msg)
+        if not USE_LOGGER:
+            print(msg)
+            sys.stdout.flush()
         
         df = pro.trade_cal(exchange='SSE', end_date=today, is_open='1')
         
         if not df.empty:
             latest_date = df.iloc[0]['cal_date']
             formatted_date = f"{latest_date[:4]}-{latest_date[4:6]}-{latest_date[6:]}"
-            logger.info(f"✅ 获取到最新交易日: {formatted_date}")
-            print(f"✅ 获取到最新交易日: {formatted_date}")
-            sys.stdout.flush()
+            msg = f"✅ 获取到最新交易日: {formatted_date}"
+            logger.info(msg)
+            if not USE_LOGGER:
+                print(msg)
+                sys.stdout.flush()
             return formatted_date
     except Exception as e:
-        logger.warning(f"⚠️ 使用Tushare获取交易日失败: {e}，使用备用方法")
-        print(f"⚠️ Tushare获取失败: {e}")
-        sys.stdout.flush()
+        msg = f"⚠️ 使用Tushare获取交易日失败: {e}，使用备用方法"
+        logger.warning(msg)
+        if not USE_LOGGER:
+            print(f"⚠️ Tushare获取失败: {e}")
+            sys.stdout.flush()
     
     # 备用方法：简单推算
     today = datetime.now()
@@ -113,9 +129,11 @@ def get_latest_trading_date():
         check_date = today - timedelta(days=i)
         if check_date.weekday() < 5:  # 0-4 for Monday-Friday
             formatted_date = check_date.strftime('%Y-%m-%d')
-            logger.info(f"📅 使用备用方法推算交易日: {formatted_date}")
-            print(f"📅 使用备用方法推算交易日: {formatted_date}")
-            sys.stdout.flush()
+            msg = f"📅 使用备用方法推算交易日: {formatted_date}"
+            logger.info(msg)
+            if not USE_LOGGER:
+                print(msg)
+                sys.stdout.flush()
             return formatted_date
     return None
 
@@ -198,12 +216,17 @@ def main():
     start_time = time.time()
     
     # 立即输出启动信息（确保用户能看到）
-    print("=" * 60)
-    print("🚀 A股数据更新程序启动中...")
-    print(f"📂 数据目录: {STOCK_DATA_DIR}")
-    print(f"📅 当前时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print("=" * 60)
-    sys.stdout.flush()  # 强制刷新输出
+    startup_msg = f"""
+{'=' * 60}
+🚀 A股数据更新程序启动中...
+📂 数据目录: {STOCK_DATA_DIR}
+📅 当前时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+{'=' * 60}
+"""
+    logger.info(startup_msg.strip())
+    if not USE_LOGGER:
+        print(startup_msg.strip())
+        sys.stdout.flush()
     
     logger.info("=" * 60)
     logger.info("开始执行每日股票数据增量更新任务 (使用Tushare)")

@@ -32,6 +32,20 @@ from .frontend import setup_sidebar, display_market_status, display_chart, displ
 from .data_loader import get_stock_data
 from .indicators import calculate_technical_indicators
 from .utils import validate_period
+from .logger_config import get_logger
+from .error_handler import safe_execute
+
+logger = get_logger(__name__)
+
+def _safe_display_module(module_name: str, display_func_name: str, error_message: str = None):
+    """安全地显示模块界面"""
+    def _display():
+        module = __import__(f"modules.{module_name}", fromlist=[display_func_name])
+        func = getattr(module, display_func_name)
+        func()
+    
+    msg = error_message or f"{module_name}功能出现错误"
+    safe_execute(_display, error_message=msg, default_value=None)
 
 def main():
     """主函数，应用程序入口点"""
@@ -46,61 +60,39 @@ def main():
     # 设置侧边栏并获取用户参数
     params = setup_sidebar()
     
-    # 打印调试信息
-    print(f"当前参数: {params}")
+    # 记录调试信息
+    logger.debug(f"当前参数: {params}")
     
     # 根据功能模式显示不同界面
     if params["function_mode"] == "💼 持仓监控":
         # 显示持仓监控界面
-        try:
+        def _display_portfolio():
             from .portfolio_monitor import display_portfolio_monitor
             display_portfolio_monitor()
-        except ImportError as e:
-            pass
-        except Exception as e:
-            st.error(f"❌ 持仓监控功能出现错误: {str(e)}")
-            import traceback
-            st.text(traceback.format_exc())
+        
+        safe_execute(
+            _display_portfolio,
+            error_message="持仓监控功能出现错误",
+            default_value=None,
+            log_error=True
+        )
         return
     elif params["function_mode"] == "🚀 增强选股":
         # 显示增强版选股界面
-        try:
+        def _display_selector():
             from .enhanced_momentum_selector import display_enhanced_momentum_selector
             display_enhanced_momentum_selector()
-        except ImportError as e:
-            # 模块导入错误已在模块内部处理
-            pass
+        
+        safe_execute(_display_selector, error_message="增强选股功能出现错误", default_value=None)
         return
     elif params["function_mode"] == "📈 涨停概念分析":
-        # 显示涨停概念分析界面
-        try:
-            from .concept_analysis import display_concept_analysis
-            display_concept_analysis()
-        except ImportError as e:
-            # 模块导入错误已在模块内部处理
-            pass
-        except Exception as e:
-            st.error(f"❌ 涨停概念分析功能出现错误: {str(e)}")
+        _safe_display_module("concept_analysis", "display_concept_analysis", "涨停概念分析功能出现错误")
         return
     elif params["function_mode"] == "📊 指数RPS分析":
-        # 显示指数RPS强度排名分析界面
-        try:
-            from .index_rps_analysis import display_index_rps_analysis
-            display_index_rps_analysis()
-        except Exception as e:
-            # 静默处理错误，不显示误导性提示
-            pass
+        _safe_display_module("index_rps_analysis", "display_index_rps_analysis", "指数RPS分析功能出现错误")
         return
     elif params["function_mode"] == "🌡️ 市场情绪分析":
-        # 显示市场情绪分析界面
-        try:
-            from .market_sentiment_analysis import display_market_sentiment_analysis
-            display_market_sentiment_analysis()
-        except ImportError as e:
-            # 模块导入错误已在模块内部处理
-            pass
-        except Exception as e:
-            st.error(f"❌ 市场情绪分析功能出现错误: {str(e)}")
+        _safe_display_module("market_sentiment_analysis", "display_market_sentiment_analysis", "市场情绪分析功能出现错误")
         return
     elif params["function_mode"] == "📊 ETF动量分析":
         # 显示ETF动量分析界面
@@ -312,10 +304,10 @@ def main():
                 df = calculate_technical_indicators(df)
                 
                 # 🔧 添加调试信息，确保数据正确传递
-                print(f"📊 传递给可视化的数据信息:")
-                print(f"   数据形状: {df.shape}")
-                print(f"   时间范围: {df.index[0]} 到 {df.index[-1]}")
-                print(f"   最新收盘价: {df['Close'].iloc[-1]:.2f}")
+                logger.debug(f"📊 传递给可视化的数据信息:")
+                logger.debug(f"   数据形状: {df.shape}")
+                logger.debug(f"   时间范围: {df.index[0]} 到 {df.index[-1]}")
+                logger.debug(f"   最新收盘价: {df['Close'].iloc[-1]:.2f}")
                 
                 # 保存数据到会话状态
                 st.session_state.df_data = df

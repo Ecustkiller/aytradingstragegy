@@ -17,15 +17,29 @@ try:
     from Ashare import get_realtime_quotes_sina, get_stock_name
     HAS_ASHARE = True
 except ImportError as e:
-    print(f"导入Ashare失败: {e}")
+    # 延迟导入logger，避免循环依赖
+    try:
+        from .logger_config import get_logger
+        logger = get_logger(__name__)
+        logger.warning(f"导入Ashare失败: {e}")
+    except ImportError:
+        print(f"导入Ashare失败: {e}")
     HAS_ASHARE = False
+
+# 导入logger（如果还没有）
+try:
+    from .logger_config import get_logger
+    logger = get_logger(__name__)
+except ImportError:
+    import logging
+    logger = logging.getLogger(__name__)
 
 # 导入分时图模块
 try:
     from .intraday_chart import display_intraday_chart
     HAS_INTRADAY_CHART = True
 except ImportError as e:
-    print(f"导入分时图模块失败: {e}")
+    logger.warning(f"导入分时图模块失败: {e}")
     HAS_INTRADAY_CHART = False
     # 尝试另一种导入方式
     try:
@@ -34,9 +48,9 @@ except ImportError as e:
         sys.path.insert(0, str(Path(__file__).parent))
         from intraday_chart import display_intraday_chart
         HAS_INTRADAY_CHART = True
-        print("使用备用导入方式成功")
+        logger.info("使用备用导入方式成功")
     except Exception as e2:
-        print(f"备用导入方式也失败: {e2}")
+        logger.warning(f"备用导入方式也失败: {e2}")
         HAS_INTRADAY_CHART = False
 
 # 持仓文件路径
@@ -249,9 +263,9 @@ def display_portfolio_monitor():
     
     # 调试信息：显示分时图功能状态
     if HAS_INTRADAY_CHART:
-        print("✅ 分时图功能已启用")
+        logger.info("✅ 分时图功能已启用")
     else:
-        print("❌ 分时图功能未启用")
+        logger.warning("❌ 分时图功能未启用")
 
     # 加载持仓
     portfolio = load_portfolio()

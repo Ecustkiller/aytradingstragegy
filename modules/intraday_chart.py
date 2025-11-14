@@ -9,6 +9,14 @@ from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
 import numpy as np
 
+# 导入logger
+try:
+    from .logger_config import get_logger
+    logger = get_logger(__name__)
+except ImportError:
+    import logging
+    logger = logging.getLogger(__name__)
+
 try:
     import sys
     from pathlib import Path
@@ -16,7 +24,7 @@ try:
     from Ashare import get_price, get_realtime_quotes_sina
     HAS_ASHARE = True
 except ImportError as e:
-    print(f"导入Ashare失败: {e}")
+    logger.warning(f"导入Ashare失败: {e}")
     HAS_ASHARE = False
 
 
