@@ -19,15 +19,19 @@ sys.path.insert(0, str(project_root))
 
 from aitrader_core.datafeed.base_datasource import BaseDataSource
 
-try:
-    from modules.config_manager import Config
-    TUSHARE_TOKEN = Config.get_tushare_token()
-except ImportError:
-    # 如果配置模块不可用，尝试从环境变量获取
-    import os
-    TUSHARE_TOKEN = os.getenv('TUSHARE_TOKEN')
-    if not TUSHARE_TOKEN:
-        logger.error("❌ Tushare Token未配置，请设置TUSHARE_TOKEN环境变量")
+# 延迟获取Token，避免在导入时抛出异常
+def _get_tushare_token():
+    """获取Tushare Token（延迟检查，不抛出异常）"""
+    try:
+        from modules.config_manager import Config
+        # 使用raise_on_missing=False，避免抛出异常
+        return Config.get_tushare_token(raise_on_missing=False)
+    except ImportError:
+        # 如果配置模块不可用，尝试从环境变量获取
+        import os
+        return os.getenv('TUSHARE_TOKEN')
+
+TUSHARE_TOKEN = None  # 延迟初始化
 
 
 class TushareDataSource(BaseDataSource):
@@ -40,6 +44,11 @@ class TushareDataSource(BaseDataSource):
     def _initialize(self) -> bool:
         """初始化Tushare API"""
         try:
+            # 延迟获取Token
+            global TUSHARE_TOKEN
+            if TUSHARE_TOKEN is None:
+                TUSHARE_TOKEN = _get_tushare_token()
+            
             if TUSHARE_TOKEN:
                 ts.set_token(TUSHARE_TOKEN)
                 self.pro = ts.pro_api()
