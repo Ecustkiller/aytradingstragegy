@@ -432,8 +432,60 @@ def get_stock_data_ashare(
             logger.warning(f"❌ Ashare获取 {formatted_symbol} 数据为空")
             return pd.DataFrame()
 
-        # 标准化列名
-        df.columns = ["Open", "High", "Low", "Close", "Volume"]
+        # 标准化列名 - 先检查实际列数，避免列数不匹配错误
+        logger.debug(f"📊 Ashare返回的列: {list(df.columns)}, 列数: {len(df.columns)}")
+        
+        # 根据实际列名映射到标准列名
+        column_mapping = {}
+        # 可能的列名变体
+        possible_names = {
+            'open': 'Open',
+            'Open': 'Open',
+            'high': 'High',
+            'High': 'High',
+            'low': 'Low',
+            'Low': 'Low',
+            'close': 'Close',
+            'Close': 'Close',
+            'volume': 'Volume',
+            'Volume': 'Volume',
+        }
+        
+        # 只选择需要的列
+        required_cols = ['Open', 'High', 'Low', 'Close', 'Volume']
+        available_cols = []
+        
+        for col in df.columns:
+            col_lower = col.lower()
+            if col_lower in possible_names:
+                target_col = possible_names[col_lower]
+                if target_col not in column_mapping.values():
+                    column_mapping[col] = target_col
+                    available_cols.append(col)
+        
+        # 如果找到了所有需要的列，重命名
+        if len(column_mapping) >= 5:
+            df = df[available_cols].rename(columns=column_mapping)
+        elif len(column_mapping) >= 4:
+            # 如果缺少某些列，尝试使用默认值
+            logger.warning(f"⚠️ Ashare返回的列不完整: {list(df.columns)}")
+            df = df[available_cols].rename(columns=column_mapping)
+            # 补充缺失的列
+            for req_col in required_cols:
+                if req_col not in df.columns:
+                    if req_col == 'Volume':
+                        df[req_col] = 0
+                    else:
+                        df[req_col] = df.get('Close', 0)
+        else:
+            # 如果列名完全不匹配，尝试按位置映射（假设顺序是 open, high, low, close, volume）
+            logger.warning(f"⚠️ 列名不匹配，尝试按位置映射。实际列: {list(df.columns)}")
+            if len(df.columns) >= 5:
+                # 假设前5列是 OHLCV
+                df = df.iloc[:, :5]
+                df.columns = required_cols
+            else:
+                raise ValueError(f"Ashare返回的列数不足: {len(df.columns)}列，需要5列")
 
         # 确保索引是日期时间类型
         if not isinstance(df.index, pd.DatetimeIndex):
