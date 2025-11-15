@@ -97,9 +97,6 @@ def main():
     elif params["function_mode"] == "📈 大盘涨跌统计":
         _safe_display_module("market_change_stats", "display_market_change_stats", "大盘涨跌统计功能出现错误")
         return
-    elif params["function_mode"] == "💰 行业资金流向":
-        _safe_display_module("industry_fund_flow", "display_industry_fund_flow", "行业资金流向功能出现错误")
-        return
     elif params["function_mode"] == "📊 ETF动量分析":
         # 显示ETF动量分析界面
         try:
