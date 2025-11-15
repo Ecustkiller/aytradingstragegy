@@ -53,9 +53,6 @@ def main():
     st.markdown(PAGE_STYLE, unsafe_allow_html=True)
     st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
     st.markdown("<div class='title-container'><h1>AY Trading System 📈</h1></div>", unsafe_allow_html=True)
-
-    # 显示版本信息
-    st.markdown(f"<div style='text-align: center; color: #666; font-size: 0.8rem; margin-bottom: 10px;'>版本: 6c78f8e (已移除行业资金流向功能)</div>", unsafe_allow_html=True)
     
     # 初始化会话状态
     initialize_session_state()
