@@ -419,22 +419,32 @@ def calculate_sentiment_indicators(df):
         # 计算情绪温度指标 (0-100)
         # 改进的计算公式，更符合市场实际情况
         
-        # 1. 涨停占比 (0-60分)
+        # 1. 涨停占比得分 (0-50分) - 降低权重，避免都为0时给分过高
         total_limit = df['ztjs'] + df['df_num']
+        # 如果涨停和跌停都为0，说明市场不活跃，给中性分数（25分，对应0.5的占比）
         df['zt_ratio'] = np.where(total_limit > 0, df['ztjs'] / total_limit, 0.5)
-        zt_score = df['zt_ratio'] * 60
+        zt_score = df['zt_ratio'] * 50  # 从60分降低到50分
         
-        # 2. 市场活跃度 (0-25分) - 基于涨停绝对数量
-        activity_score = np.minimum(df['ztjs'] / 50 * 25, 25)  # 50只涨停为满分
+        # 2. 市场活跃度 (0-30分) - 提高权重，更反映市场热度
+        # 使用对数函数，让活跃度更平滑：log(1+x) / log(51) * 30
+        # 这样50只涨停约得30分，100只涨停约得35分（但会被限制在30分）
+        activity_score = np.minimum(np.log1p(df['ztjs']) / np.log(51) * 30, 30)
         
-        # 3. 连板强度 (0-15分)
+        # 3. 连板强度 (0-15分) - 保持原逻辑
         lb_score = np.minimum(df['lbgd'] / 8 * 15, 15)  # 8天连板为满分
         
-        # 4. 风险惩罚 (0到-10分)
-        risk_penalty = np.maximum(-10, -df['df_num'] / 30 * 10)  # 30只跌停扣满分
+        # 4. 风险惩罚 (0到-15分) - 提高惩罚力度，更重视风险
+        # 使用对数函数，让惩罚更平滑：-log(1+x) / log(31) * 15
+        # 这样30只跌停扣15分，50只跌停扣约17分（但会被限制在-15分）
+        risk_penalty = np.maximum(-15, -np.log1p(df['df_num']) / np.log(31) * 15)
+        
+        # 5. 平衡调整：如果涨停和跌停都为0，降低总分
+        # 市场完全不活跃时，应该给较低分数
+        inactive_mask = (df['ztjs'] == 0) & (df['df_num'] == 0)
+        inactive_adjustment = np.where(inactive_mask, -20, 0)  # 不活跃时扣20分
         
         # 综合情绪温度
-        df['strong'] = (zt_score + activity_score + lb_score + risk_penalty).round(1)
+        df['strong'] = (zt_score + activity_score + lb_score + risk_penalty + inactive_adjustment).round(1)
         
         # 确保情绪温度在0-100范围内
         df['strong'] = np.clip(df['strong'], 0, 100)
