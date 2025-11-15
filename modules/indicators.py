@@ -207,31 +207,31 @@ def analyze_market_status(df):
             hist_increasing = macd_hist_last > macd_prev_hist
             hist_decreasing = macd_hist_last < macd_prev_hist
             
-            # 综合判断
+            # 综合判断（统一为两个字）
             if above_zero and macd_last > macd_signal_last and macd_hist_last > 0:
                 # 零轴上方，MACD线在信号线上方，柱状图为正
                 if hist_increasing:
-                    macd_status = "多头趋势"
+                    macd_status = "多头"
                 else:
-                    macd_status = "多头减弱"
+                    macd_status = "减弱"
             elif below_zero and macd_last < macd_signal_last and macd_hist_last < 0:
                 # 零轴下方，MACD线在信号线下方，柱状图为负
                 if hist_decreasing:
-                    macd_status = "空头趋势"
+                    macd_status = "空头"
                 else:
-                    macd_status = "空头减弱"
+                    macd_status = "减弱"
             elif macd_last > macd_signal_last:
                 # MACD线在信号线上方，但不在零轴上方或柱状图为负
                 if macd_hist_last > 0:
-                    macd_status = "多头趋势"
+                    macd_status = "多头"
                 else:
-                    macd_status = "空头趋势"  # 柱状图为负，即使MACD线在上方也是空头
+                    macd_status = "空头"  # 柱状图为负，即使MACD线在上方也是空头
             else:
                 # MACD线在信号线下方
                 if macd_hist_last < 0:
-                    macd_status = "空头趋势"
+                    macd_status = "空头"
                 else:
-                    macd_status = "多头趋势"  # 柱状图为正，即使MACD线在下方也是多头
+                    macd_status = "多头"  # 柱状图为正，即使MACD线在下方也是多头
     
     # 分析RSI状态
     rsi_last = latest['RSI']
