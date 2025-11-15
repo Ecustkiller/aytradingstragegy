@@ -186,27 +186,39 @@ def display_industry_fund_flow():
     # 根据用户选择对数据进行排序，用于图表
     df_plot = df.sort_values(by=sort_options[sort_by_col], ascending=sort_ascending)
     df_table = df_plot.copy()
-    
+
     # 绘制图表
     st.subheader(f"行业资金流向 ({chart_type})")
-    
+
     # 确定颜色和大小列
     if color_by_option == "净额(亿)":
         color_col = '净额(亿)'
     else:
         color_col = '流入资金(亿)'
-    
+
     if size_by_option == "净额(亿)":
         size_col = '净额(亿)'
     else:
         size_col = '流入资金(亿)'
-    
-    # 添加绝对值列用于大小
+
+    # 确保数值列的正确类型
+    numeric_columns = ['净额(亿)', '流入资金(亿)', '行业涨跌幅', '公司家数']
+    for col in numeric_columns:
+        if col in df_plot.columns:
+            df_plot[col] = pd.to_numeric(df_plot[col], errors='coerce').fillna(0)
+
+    # 添加绝对值列用于大小，确保为正值
     df_plot['净额(亿)_abs'] = df_plot['净额(亿)'].abs()
     df_plot[size_col + '_abs'] = df_plot[size_col].abs()
-    
+
+    # 确保行业名称列为字符串类型
+    df_plot['行业名称'] = df_plot['行业名称'].astype(str)
+
     # 清理无效数据
-    df_plot.dropna(subset=[color_col, size_col + '_abs'], inplace=True)
+    df_plot.dropna(subset=[color_col, size_col + '_abs', '行业名称'], inplace=True)
+
+    # 额外的数据清理：确保没有无穷大值
+    df_plot = df_plot.replace([float('inf'), float('-inf')], float('nan')).dropna()
     
     if df_plot.empty:
         st.error("绘图数据为空，可能是因为关键列（如净额或涨跌幅）包含无效数据。")
@@ -215,10 +227,14 @@ def display_industry_fund_flow():
     # 绘制市场地图
     if chart_type == "市场地图":
         st.caption("注意：市场地图的布局由算法根据块的大小和颜色自动决定，不完全等同于列表排序。")
-        
+
         try:
+            # 准备数据 - 确保数据格式正确
+            plot_data = df_plot.copy()
+
+            # 创建图表
             fig = px.treemap(
-                df_plot,
+                plot_data,
                 path=[px.Constant("所有行业"), '行业名称'],
                 values=size_col + '_abs',
                 color=color_col,
@@ -231,20 +247,34 @@ def display_industry_fund_flow():
                 },
                 title=f"颜色: {color_by_option} | 大小: {size_by_option} (绝对值)"
             )
+
+            # 更新悬停模板
             fig.update_traces(
                 hovertemplate='<b>%{label}</b><br>行业涨跌幅: %{customdata[0]:.2f}%<br>净额: %{customdata[1]:.2f} 亿<br>领涨股: %{customdata[2]} (%{customdata[3]:.2f}%)<extra></extra>'
             )
-            fig.update_layout(margin=dict(t=50, l=25, r=25, b=25))
+
+            # 更新布局
+            fig.update_layout(
+                margin=dict(t=50, l=25, r=25, b=25),
+                font=dict(size=12)
+            )
+
             st.plotly_chart(fig, use_container_width=True)
+
         except Exception as e:
             logger.error(f"绘制市场地图失败: {e}", exc_info=True)
             st.error(f"绘制图表失败: {e}")
+            st.info("💡 **可能的解决方案：**\n- 尝试刷新数据\n- 检查网络连接\n- 稍后重试")
     
     # 绘制散点图
     elif chart_type == "散点图":
         try:
+            # 准备数据 - 确保数据格式正确
+            plot_data = df_plot.copy()
+
+            # 创建图表
             fig = px.scatter(
-                df_plot,
+                plot_data,
                 x='公司家数',
                 y='行业名称',
                 size=size_col + '_abs',
@@ -258,17 +288,25 @@ def display_industry_fund_flow():
                 },
                 title=f"颜色: {color_by_option} | 大小: {size_by_option} (绝对值) | X轴: 公司家数"
             )
+
+            # 更新悬停模板
             fig.update_traces(
                 hovertemplate='<b>%{y}</b><br>公司家数: %{x}<br>行业涨跌幅: %{customdata[0]:.2f}%<br>净额: %{customdata[1]:.2f} 亿<br>领涨股: %{customdata[2]} (%{customdata[3]:.2f}%)<extra></extra>'
             )
+
+            # 更新布局
             fig.update_layout(
-                yaxis={'categoryorder': 'array', 'categoryarray': df_plot['行业名称'].tolist()},
-                height=800
+                yaxis={'categoryorder': 'array', 'categoryarray': plot_data['行业名称'].tolist()},
+                height=800,
+                font=dict(size=12)
             )
+
             st.plotly_chart(fig, use_container_width=True)
+
         except Exception as e:
             logger.error(f"绘制散点图失败: {e}", exc_info=True)
             st.error(f"绘制图表失败: {e}")
+            st.info("💡 **可能的解决方案：**\n- 尝试刷新数据\n- 检查网络连接\n- 稍后重试")
     
     # 显示原始数据表格
     st.subheader("详细数据表")
