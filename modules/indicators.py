@@ -172,6 +172,10 @@ def analyze_market_status(df):
     macd_prev = prev['MACD']
     macd_signal_prev = prev['MACD_signal']
     
+    # 计算MACD柱状图(histogram)值
+    macd_hist_last = latest['MACD_hist']
+    macd_prev_hist = prev['MACD_hist']
+    
     # 初始化变量
     is_golden_cross = False
     is_death_cross = False
@@ -189,10 +193,45 @@ def analyze_market_status(df):
             macd_status = "金叉"
         elif is_death_cross:
             macd_status = "死叉"
-        elif macd_last > macd_signal_last:
-            macd_status = "多头趋势"
         else:
-            macd_status = "空头趋势"
+            # 改进的判断逻辑：综合考虑MACD线、信号线和柱状图
+            # 1. 如果MACD线和信号线都在零轴上方，且柱状图为正且增大，为多头
+            # 2. 如果MACD线和信号线都在零轴下方，且柱状图为负且减小，为空头
+            # 3. 否则根据MACD线和信号线的相对位置以及柱状图趋势判断
+            
+            # 检查是否在零轴上方
+            above_zero = macd_last > 0 and macd_signal_last > 0
+            below_zero = macd_last < 0 and macd_signal_last < 0
+            
+            # 柱状图趋势（增大或减小）
+            hist_increasing = macd_hist_last > macd_prev_hist
+            hist_decreasing = macd_hist_last < macd_prev_hist
+            
+            # 综合判断
+            if above_zero and macd_last > macd_signal_last and macd_hist_last > 0:
+                # 零轴上方，MACD线在信号线上方，柱状图为正
+                if hist_increasing:
+                    macd_status = "多头趋势"
+                else:
+                    macd_status = "多头减弱"
+            elif below_zero and macd_last < macd_signal_last and macd_hist_last < 0:
+                # 零轴下方，MACD线在信号线下方，柱状图为负
+                if hist_decreasing:
+                    macd_status = "空头趋势"
+                else:
+                    macd_status = "空头减弱"
+            elif macd_last > macd_signal_last:
+                # MACD线在信号线上方，但不在零轴上方或柱状图为负
+                if macd_hist_last > 0:
+                    macd_status = "多头趋势"
+                else:
+                    macd_status = "空头趋势"  # 柱状图为负，即使MACD线在上方也是空头
+            else:
+                # MACD线在信号线下方
+                if macd_hist_last < 0:
+                    macd_status = "空头趋势"
+                else:
+                    macd_status = "多头趋势"  # 柱状图为正，即使MACD线在下方也是多头
     
     # 分析RSI状态
     rsi_last = latest['RSI']
@@ -219,10 +258,6 @@ def analyze_market_status(df):
     price_position = (close_last - low_20) / (high_20 - low_20) * 100 if high_20 != low_20 else 50
     position_status = "高位" if price_position > 80 else "低位" if price_position < 20 else "中位"
     price_change = (latest['Close'] / prev['Close'] - 1) * 100
-    
-    # 计算MACD柱状图(histogram)值
-    macd_hist_last = latest['MACD_hist']
-    macd_prev_hist = prev['MACD_hist']
     
     # 返回分析结果
     return {
