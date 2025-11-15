@@ -213,13 +213,13 @@ def analyze_market_status(df):
                 if hist_increasing:
                     macd_status = "多头"
                 else:
-                    macd_status = "减弱"
+                    macd_status = "多弱"  # 多头减弱
             elif below_zero and macd_last < macd_signal_last and macd_hist_last < 0:
                 # 零轴下方，MACD线在信号线下方，柱状图为负
                 if hist_decreasing:
                     macd_status = "空头"
                 else:
-                    macd_status = "减弱"
+                    macd_status = "空弱"  # 空头减弱
             elif macd_last > macd_signal_last:
                 # MACD线在信号线上方，但不在零轴上方或柱状图为负
                 if macd_hist_last > 0:
