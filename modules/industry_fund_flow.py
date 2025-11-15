@@ -232,30 +232,38 @@ def display_industry_fund_flow():
             # 准备数据 - 确保数据格式正确
             plot_data = df_plot.copy()
 
-            # 创建图表
-            fig = px.treemap(
-                plot_data,
-                path=[px.Constant("所有行业"), '行业名称'],
-                values=size_col + '_abs',
-                color=color_col,
-                color_continuous_scale='RdYlGn_r',  # 红色代表热门
-                hover_data={
-                    '行业涨跌幅': ':.2f',
-                    '净额(亿)': ':.2f',
-                    '领涨股': True,
-                    '领涨股涨跌幅': ':.2f'
-                },
-                title=f"颜色: {color_by_option} | 大小: {size_by_option} (绝对值)"
-            )
+            # 重置索引以避免索引相关的错误
+            plot_data = plot_data.reset_index(drop=True)
 
-            # 更新悬停模板
-            fig.update_traces(
-                hovertemplate='<b>%{label}</b><br>行业涨跌幅: %{customdata[0]:.2f}%<br>净额: %{customdata[1]:.2f} 亿<br>领涨股: %{customdata[2]} (%{customdata[3]:.2f}%)<extra></extra>'
-            )
+            # 简化数据结构，只保留必要的列
+            simplified_data = {
+                '行业名称': plot_data['行业名称'].tolist(),
+                'values': plot_data[size_col + '_abs'].tolist(),
+                'colors': plot_data[color_col].tolist(),
+                '行业涨跌幅': plot_data['行业涨跌幅'].tolist(),
+                '净额(亿)': plot_data['净额(亿)'].tolist(),
+                '领涨股': plot_data['领涨股'].tolist(),
+                '领涨股涨跌幅': plot_data['领涨股涨跌幅'].tolist()
+            }
+
+            # 创建简化的DataFrame
+            import plotly.graph_objects as go
+            fig = go.Figure(go.Treemap(
+                labels=simplified_data['行业名称'],
+                values=simplified_data['values'],
+                parents=["所有行业"] * len(simplified_data['行业名称']),
+                marker_colors=simplified_data['colors'],
+                hovertemplate='<b>%{label}</b><br>行业涨跌幅: %{customdata[0]:.2f}%<br>净额: %{customdata[1]:.2f} 亿<br>领涨股: %{customdata[2]} (%{customdata[3]:.2f}%)<extra></extra>',
+                customdata=list(zip(simplified_data['行业涨跌幅'], simplified_data['净额(亿)'], simplified_data['领涨股'], simplified_data['领涨股涨跌幅'])),
+                colorscale='RdYlGn_r',
+                showscale=True,
+                colorbar=dict(title=color_by_option)
+            ))
 
             # 更新布局
             fig.update_layout(
-                margin=dict(t=50, l=25, r=25, b=25),
+                title=f"行业资金流向 - 颜色: {color_by_option} | 大小: {size_by_option} (绝对值)",
+                margin=dict(t=80, l=25, r=25, b=25),
                 font=dict(size=12)
             )
 
@@ -265,6 +273,10 @@ def display_industry_fund_flow():
             logger.error(f"绘制市场地图失败: {e}", exc_info=True)
             st.error(f"绘制图表失败: {e}")
             st.info("💡 **可能的解决方案：**\n- 尝试刷新数据\n- 检查网络连接\n- 稍后重试")
+
+            # 提供备用的简单表格显示
+            st.subheader("📊 数据表格（备用显示）")
+            st.dataframe(df_plot[['行业名称', '行业涨跌幅', '净额(亿)', '流入资金(亿)', '公司家数']].head(20))
     
     # 绘制散点图
     elif chart_type == "散点图":
@@ -272,33 +284,42 @@ def display_industry_fund_flow():
             # 准备数据 - 确保数据格式正确
             plot_data = df_plot.copy()
 
-            # 创建图表
-            fig = px.scatter(
-                plot_data,
-                x='公司家数',
-                y='行业名称',
-                size=size_col + '_abs',
-                color=color_col,
-                color_continuous_scale='RdYlGn_r',
-                hover_data={
-                    '行业涨跌幅': ':.2f',
-                    '净额(亿)': ':.2f',
-                    '领涨股': True,
-                    '领涨股涨跌幅': ':.2f'
-                },
-                title=f"颜色: {color_by_option} | 大小: {size_by_option} (绝对值) | X轴: 公司家数"
-            )
+            # 重置索引以避免索引相关的错误
+            plot_data = plot_data.reset_index(drop=True)
 
-            # 更新悬停模板
-            fig.update_traces(
-                hovertemplate='<b>%{y}</b><br>公司家数: %{x}<br>行业涨跌幅: %{customdata[0]:.2f}%<br>净额: %{customdata[1]:.2f} 亿<br>领涨股: %{customdata[2]} (%{customdata[3]:.2f}%)<extra></extra>'
-            )
+            # 使用 plotly.graph_objects 直接创建图表
+            import plotly.graph_objects as go
+
+            fig = go.Figure()
+
+            # 添加散点轨迹
+            fig.add_trace(go.Scatter(
+                x=plot_data['公司家数'],
+                y=plot_data['行业名称'],
+                mode='markers',
+                marker=dict(
+                    size=plot_data[size_col + '_abs'] / plot_data[size_col + '_abs'].max() * 30 + 5,  # 归一化大小
+                    color=plot_data[color_col],
+                    colorscale='RdYlGn_r',
+                    showscale=True,
+                    colorbar=dict(title=color_by_option),
+                    sizemode='diameter',
+                    line=dict(width=1, color='DarkSlateGrey')
+                ),
+                customdata=plot_data[['行业涨跌幅', '净额(亿)', '领涨股', '领涨股涨跌幅']].values,
+                hovertemplate='<b>%{y}</b><br>公司家数: %{x}<br>行业涨跌幅: %{customdata[0]:.2f}%<br>净额: %{customdata[1]:.2f} 亿<br>领涨股: %{customdata[2]} (%{customdata[3]:.2f}%)<extra></extra>',
+                name='行业'
+            ))
 
             # 更新布局
             fig.update_layout(
-                yaxis={'categoryorder': 'array', 'categoryarray': plot_data['行业名称'].tolist()},
+                title=f"行业资金流向散点图 - 颜色: {color_by_option} | 大小: {size_by_option} (绝对值) | X轴: 公司家数",
+                xaxis_title='公司家数',
+                yaxis_title='行业名称',
                 height=800,
-                font=dict(size=12)
+                yaxis=dict(categoryorder='array', categoryarray=plot_data['行业名称'].tolist()),
+                font=dict(size=12),
+                margin=dict(l=150, r=50, t=80, b=50)
             )
 
             st.plotly_chart(fig, use_container_width=True)
@@ -307,6 +328,10 @@ def display_industry_fund_flow():
             logger.error(f"绘制散点图失败: {e}", exc_info=True)
             st.error(f"绘制图表失败: {e}")
             st.info("💡 **可能的解决方案：**\n- 尝试刷新数据\n- 检查网络连接\n- 稍后重试")
+
+            # 提供备用的简单表格显示
+            st.subheader("📊 数据表格（备用显示）")
+            st.dataframe(df_plot[['行业名称', '行业涨跌幅', '净额(亿)', '流入资金(亿)', '公司家数']].head(20))
     
     # 显示原始数据表格
     st.subheader("详细数据表")
