@@ -15,7 +15,12 @@ from typing import Dict, List
 from datetime import datetime, timedelta
 
 from .async_data_processor import performance_monitor, data_cache
-from .optimized_data_loader import optimized_loader
+# 已迁移到 data_loader，保留 optimized_loader 用于向后兼容
+try:
+    from .optimized_data_loader import optimized_loader
+except ImportError:
+    # 如果 optimized_data_loader 不存在，使用 data_loader 的接口
+    optimized_loader = None
 
 class PerformanceDashboard:
     """性能监控面板"""
@@ -260,7 +265,11 @@ class PerformanceDashboard:
         st.markdown("#### 💾 缓存统计")
         
         try:
-            cache_stats = optimized_loader.get_cache_stats()
+            # 使用 data_cache 的统计信息
+            if optimized_loader:
+                cache_stats = optimized_loader.get_cache_stats()
+            else:
+                cache_stats = data_cache.stats() if hasattr(data_cache, 'stats') else {}
             
             col1, col2 = st.columns(2)
             
@@ -355,8 +364,11 @@ class PerformanceDashboard:
         
         with col1:
             if st.button("🧹 清理所有缓存"):
-                optimized_loader.clear_cache()
-                data_cache.clear()
+                # 清理缓存
+                if optimized_loader:
+                    optimized_loader.clear_cache()
+                if hasattr(data_cache, 'clear'):
+                    data_cache.clear()
                 st.success("缓存已清理！")
         
         with col2:

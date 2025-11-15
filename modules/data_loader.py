@@ -162,6 +162,7 @@ def get_stock_data_ashare(
         return pd.DataFrame()
 
 
+@handle_data_error
 @st.cache_data(ttl=CACHE_TTL_ONLINE_DATA, show_spinner=False)
 def get_stock_data_ak(
     symbol: str,
@@ -344,6 +345,7 @@ def get_stock_data_tushare(
         return pd.DataFrame()
 
 
+@handle_data_error
 @st.cache_data(ttl=CACHE_TTL_LOCAL_DATA, show_spinner=False)
 def get_stock_data_csv(
     symbol: str,

@@ -15,10 +15,18 @@ import pandas as pd
 import numpy as np
 from typing import List, Dict, Optional, Tuple
 import threading
+# 迁移到 data_loader，使用统一的接口
 try:
-    from .optimized_data_loader import OptimizedDataLoader as AshareDataLoader
+    from .data_loader import get_stock_data, get_multiple_stocks_data
+    USE_DATA_LOADER = True
 except ImportError:
-    from optimized_data_loader import OptimizedDataLoader as AshareDataLoader
+    # 向后兼容：如果 data_loader 不可用，尝试使用 optimized_data_loader
+    try:
+        from .optimized_data_loader import OptimizedDataLoader as AshareDataLoader
+        USE_DATA_LOADER = False
+    except ImportError:
+        from optimized_data_loader import OptimizedDataLoader as AshareDataLoader
+        USE_DATA_LOADER = False
 
 class RateLimiter:
     """请求频率限制器"""
@@ -47,7 +55,11 @@ class IndustryRotationBot:
     
     def __init__(self, webhook_url: str):
         self.webhook_url = webhook_url
-        self.data_loader = AshareDataLoader()
+        # 使用统一的 data_loader 接口
+        if USE_DATA_LOADER:
+            self.data_loader = None  # 直接使用函数接口
+        else:
+            self.data_loader = AshareDataLoader()
         self.rate_limiter = RateLimiter(max_requests_per_minute=10)  # 降低到每分钟10次请求
         self.setup_logging()
         
