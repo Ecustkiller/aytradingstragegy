@@ -167,21 +167,26 @@ def display_market_change_stats():
     st.title("📈 大盘涨跌统计")
     st.markdown("统计指定日期和时分的大盘涨跌情况，包括涨停跌停股票及其概念分布")
     
-    # 左侧边栏 - 查询控制
-    with st.sidebar:
-        st.title("🔍 查询控制")
-        st.markdown("---")
-        
+    # 主界面 - 查询控制（从侧边栏移到主界面）
+    st.markdown("---")
+    st.subheader("🔍 查询设置")
+    
+    # 使用列布局，让界面更紧凑
+    col1, col2, col3 = st.columns([2, 2, 1])
+    
+    with col1:
         # 日期选择
-        st.subheader("📅 选择日期")
+        st.markdown("**📅 选择日期**")
         selected_date = st.date_input(
             "统计日期",
             datetime.now().date(),
-            help="选择要统计的日期"
+            help="选择要统计的日期",
+            label_visibility="collapsed"
         )
-        
+    
+    with col2:
         # 时间选择
-        st.subheader("🕐 选择时间")
+        st.markdown("**🕐 选择时间**")
         # 预设时间选项
         time_options = {
             "开盘前集合竞价 (09:25)": "09:25",
@@ -195,23 +200,31 @@ def display_market_change_stats():
         selected_option = st.selectbox(
             "选择预设时间",
             list(time_options.keys()),
-            help="选择常用时间点或自定义时间"
+            help="选择常用时间点或自定义时间",
+            label_visibility="collapsed"
         )
-        
-        # 根据选择设置时间
-        if selected_option == "自定义时间":
+    
+    with col3:
+        st.markdown("**⚙️ 操作**")
+        st.markdown("<br>", unsafe_allow_html=True)  # 占位，对齐按钮
+    
+    # 自定义时间选择（如果需要）
+    if selected_option == "自定义时间":
+        col_custom = st.columns([2, 2, 1])
+        with col_custom[0]:
             selected_time = st.time_input(
                 "自定义时间",
                 value=time(9, 25),
                 help="选择具体的时分"
             )
             target_time = selected_time.strftime("%H:%M")
-        else:
-            target_time = time_options[selected_option]
-            st.info(f"已选择时间: {target_time}")
-        
-        # 查询按钮
-        st.markdown("---")
+    else:
+        target_time = time_options[selected_option]
+    
+    # 查询按钮和提示信息
+    col_btn, col_info = st.columns([1, 3])
+    with col_btn:
+        st.markdown("<br>", unsafe_allow_html=True)  # 占位，对齐按钮
         if st.button("🚀 开始统计", type="primary", use_container_width=True):
             target_date = selected_date.strftime('%Y%m%d')
             with st.spinner(f"正在获取 {target_date} {target_time} 的数据..."):
@@ -223,37 +236,35 @@ def display_market_change_stats():
                 st.session_state.stats_result = result
                 st.success(f"✅ 成功获取数据")
                 st.balloons()
-        
-        # 显示当前查询状态
+    
+    with col_info:
+        st.info("""
+        **💡 提示：**
+        - 交易时间：09:30-11:30, 13:00-15:00
+        - 集合竞价：09:15-09:25
+        - 建议选择整点或半点时间
+        """)
+    
+    # 显示当前查询状态（如果有数据）
+    if 'stats_result' in st.session_state and st.session_state.stats_result:
+        result = st.session_state.stats_result
         st.markdown("---")
-        st.subheader("📊 查询状态")
-        if 'stats_result' in st.session_state and st.session_state.stats_result:
-            result = st.session_state.stats_result
-            st.info(f"已加载 {result['统计日期']} {result['统计时间']} 数据")
-            st.metric("总家数", result['总家数'])
-            st.metric("涨停数", result['涨停数量'])
-            st.metric("跌停数", result['跌停数量'])
-        else:
-            st.warning("暂无数据，请先查询")
-        
-        # 查询提示
-        st.markdown("---")
-        st.markdown("""
-        <div style='font-size: 12px; color: gray;'>
-        <p><strong>提示：</strong></p>
-        <ul>
-        <li>交易时间：09:30-11:30, 13:00-15:00</li>
-        <li>集合竞价：09:15-09:25</li>
-        <li>建议选择整点或半点时间</li>
-        </ul>
-        </div>
-        """, unsafe_allow_html=True)
+        col_status1, col_status2, col_status3, col_status4 = st.columns(4)
+        with col_status1:
+            st.metric("📅 统计日期", result['统计日期'])
+        with col_status2:
+            st.metric("🕐 统计时间", result['统计时间'])
+        with col_status3:
+            st.metric("📊 总家数", result['总家数'])
+        with col_status4:
+            st.metric("🔴 涨停数", result['涨停数量'], f"🟢 跌停: {result['跌停数量']}")
     
     # 检查是否有数据
     if 'stats_result' in st.session_state and st.session_state.stats_result:
         result = st.session_state.stats_result
         
-        # 显示查询的日期时间
+        # 显示查询的日期时间（已在上面显示，这里可以简化）
+        st.markdown("---")
         st.markdown(f"### 📊 {result['统计日期']} {result['统计时间']} 市场统计")
         
         # 使用tabs组织内容
