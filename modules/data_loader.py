@@ -33,6 +33,20 @@ from .logger_config import get_logger
 from .smart_data_manager import cached_realtime_data, cached_stock_data, smart_data_manager
 from .utils import format_stock_code
 
+# 导入重试机制
+try:
+    from tenacity import (
+        retry,
+        stop_after_attempt,
+        wait_exponential,
+        retry_if_exception_type,
+        RetryError
+    )
+    HAS_TENACITY = True
+except ImportError:
+    HAS_TENACITY = False
+    logger.warning("tenacity 未安装，重试功能将不可用")
+
 logger = get_logger(__name__)
 
 
@@ -176,6 +190,76 @@ def format_user_friendly_error(
     else:
         # 通用错误信息
         return f"❌ 数据获取失败\n\n**错误类型：** {error_type}\n**错误信息：** {error_msg}\n**股票：** {symbol}\n**数据源：** {data_source}\n\n💡 **建议：**\n- 检查股票代码和日期范围\n- 尝试切换数据源\n- 稍后重试\n- 如问题持续，请联系技术支持"
+
+
+def check_data_quality(df: pd.DataFrame, symbol: str) -> Dict[str, Any]:
+    """
+    检查数据质量
+    
+    Args:
+        df: 股票数据DataFrame
+        symbol: 股票代码
+        
+    Returns:
+        dict: 数据质量信息
+    """
+    quality = {
+        'is_latest': False,
+        'is_complete': False,
+        'has_delay': False,
+        'missing_days': 0,
+        'warnings': []
+    }
+    
+    if df.empty:
+        quality['warnings'].append("数据为空")
+        return quality
+    
+    try:
+        from .trading_calendar import get_latest_trading_day
+        
+        # 检查是否包含最新交易日
+        latest_trading_day = get_latest_trading_day()
+        latest_trading_date = pd.to_datetime(latest_trading_day)
+        
+        if latest_trading_date in df.index:
+            quality['is_latest'] = True
+        else:
+            quality['has_delay'] = True
+            days_delay = (pd.to_datetime('today') - df.index[-1]).days
+            if days_delay > 3:
+                quality['warnings'].append(f"数据可能不是最新的，最新数据日期：{df.index[-1].strftime('%Y-%m-%d')}，延迟约 {days_delay} 天")
+        
+        # 检查数据完整性（检查是否有缺失的交易日）
+        if len(df) > 1:
+            # 计算预期交易日数（粗略估计）
+            date_range = (df.index[-1] - df.index[0]).days
+            # 假设交易日占比约65%（排除周末和节假日）
+            expected_trading_days = int(date_range * 0.65)
+            actual_days = len(df)
+            
+            if actual_days < expected_trading_days * 0.9:
+                quality['is_complete'] = False
+                quality['missing_days'] = expected_trading_days - actual_days
+                if quality['missing_days'] > 10:
+                    quality['warnings'].append(f"数据可能不完整，预期约 {expected_trading_days} 个交易日，实际 {actual_days} 个，缺失约 {quality['missing_days']} 天")
+        
+        # 检查数据异常值
+        if 'Close' in df.columns:
+            # 检查是否有异常的价格波动（单日涨跌幅超过20%）
+            if len(df) > 1:
+                pct_change = df['Close'].pct_change().abs()
+                extreme_changes = pct_change[pct_change > 0.2]
+                if len(extreme_changes) > 0:
+                    quality['warnings'].append(f"发现 {len(extreme_changes)} 个异常价格波动（单日涨跌幅>20%），请检查数据准确性")
+        
+        quality['is_complete'] = True if not quality['warnings'] else False
+        
+    except Exception as e:
+        logger.warning(f"数据质量检查失败: {e}")
+        quality['warnings'].append("数据质量检查失败")
+    
+    return quality
 
 
 # 检查数据源可用性
@@ -622,27 +706,8 @@ def get_stock_data(
             st.error(f"❌ {date_error}")
             return pd.DataFrame()
 
-        # 根据用户选择的数据源获取数据
-        if data_source == "Ashare" and has_ashare:
-            df = get_stock_data_ashare(symbol, start, end, period_type)
-        elif data_source == "Ashare" and not has_ashare:
-            st.warning("💡 未检测到Ashare模块，使用AKShare数据源")
-            df = get_stock_data_ak(symbol, start, end, period_type)
-        elif data_source == "Tushare":
-            if has_tushare:
-                df = get_stock_data_tushare(symbol, start, end, period_type)
-            else:
-                st.warning("💡 Tushare模块不可用，回退到AKShare")
-                df = get_stock_data_ak(symbol, start, end, period_type)
-        elif data_source == "本地CSV":
-            if has_csv:
-                df = get_stock_data_csv(symbol, start, end, period_type)
-            else:
-                st.warning("💡 CSV数据源不可用，回退到AKShare")
-                df = get_stock_data_ak(symbol, start, end, period_type)
-        else:
-            # 使用AKShare数据源
-            df = get_stock_data_ak(symbol, start, end, period_type)
+        # 根据用户选择的数据源获取数据（带重试机制）
+        df = _get_stock_data_with_retry(symbol, start, end, period_type, data_source)
 
         # 🔧 统一应用交易日过滤，确保K线连续显示
         if not df.empty and period_type in ["daily", "weekly", "monthly"]:
@@ -655,6 +720,13 @@ def get_stock_data(
             if filtered_count < original_count:
                 st.info(f"📅 交易日过滤: {original_count} → {filtered_count} 条数据")
                 st.success(f"✅ 已过滤掉 {original_count - filtered_count} 个非交易日（周末和节假日）")
+        
+        # 数据质量检查
+        if not df.empty:
+            quality_info = check_data_quality(df, symbol)
+            if quality_info.get('warnings'):
+                for warning in quality_info['warnings']:
+                    st.warning(f"⚠️ {warning}")
 
         return df
 
