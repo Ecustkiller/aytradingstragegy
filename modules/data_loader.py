@@ -262,6 +262,89 @@ def check_data_quality(df: pd.DataFrame, symbol: str) -> Dict[str, Any]:
     return quality
 
 
+def _get_stock_data_with_retry(
+    symbol: str,
+    start: Union[str, datetime.datetime, pd.Timestamp],
+    end: Union[str, datetime.datetime, pd.Timestamp],
+    period_type: str,
+    data_source: str,
+) -> pd.DataFrame:
+    """
+    带重试机制的数据获取函数
+    
+    Args:
+        symbol: 股票代码
+        start: 开始日期
+        end: 结束日期
+        period_type: 数据周期类型
+        data_source: 数据源
+        
+    Returns:
+        pd.DataFrame: 股票数据
+    """
+    # 定义重试装饰器（仅对网络错误重试）
+    if HAS_TENACITY:
+        @retry(
+            stop=stop_after_attempt(3),
+            wait=wait_exponential(multiplier=1, min=2, max=10),
+            retry=retry_if_exception_type((ConnectionError, TimeoutError, OSError))
+        )
+        def _fetch_with_retry():
+            if data_source == "Ashare" and has_ashare:
+                return get_stock_data_ashare(symbol, start, end, period_type)
+            elif data_source == "Ashare" and not has_ashare:
+                st.warning("💡 未检测到Ashare模块，使用AKShare数据源")
+                return get_stock_data_ak(symbol, start, end, period_type)
+            elif data_source == "Tushare":
+                if has_tushare:
+                    return get_stock_data_tushare(symbol, start, end, period_type)
+                else:
+                    st.warning("💡 Tushare模块不可用，回退到AKShare")
+                    return get_stock_data_ak(symbol, start, end, period_type)
+            elif data_source == "本地CSV":
+                if has_csv:
+                    return get_stock_data_csv(symbol, start, end, period_type)
+                else:
+                    st.warning("💡 CSV数据源不可用，回退到AKShare")
+                    return get_stock_data_ak(symbol, start, end, period_type)
+            else:
+                # 使用AKShare数据源
+                return get_stock_data_ak(symbol, start, end, period_type)
+        
+        try:
+            return _fetch_with_retry()
+        except RetryError as e:
+            # 重试失败后，尝试切换到备用数据源
+            logger.warning(f"数据源 {data_source} 重试失败，尝试备用数据源: {e}")
+            if data_source != "AKShare":
+                st.warning(f"💡 {data_source} 数据源失败，切换到AKShare")
+                return get_stock_data_ak(symbol, start, end, period_type)
+            else:
+                raise
+    else:
+        # 如果没有tenacity，直接调用（无重试）
+        if data_source == "Ashare" and has_ashare:
+            return get_stock_data_ashare(symbol, start, end, period_type)
+        elif data_source == "Ashare" and not has_ashare:
+            st.warning("💡 未检测到Ashare模块，使用AKShare数据源")
+            return get_stock_data_ak(symbol, start, end, period_type)
+        elif data_source == "Tushare":
+            if has_tushare:
+                return get_stock_data_tushare(symbol, start, end, period_type)
+            else:
+                st.warning("💡 Tushare模块不可用，回退到AKShare")
+                return get_stock_data_ak(symbol, start, end, period_type)
+        elif data_source == "本地CSV":
+            if has_csv:
+                return get_stock_data_csv(symbol, start, end, period_type)
+            else:
+                st.warning("💡 CSV数据源不可用，回退到AKShare")
+                return get_stock_data_ak(symbol, start, end, period_type)
+        else:
+            # 使用AKShare数据源
+            return get_stock_data_ak(symbol, start, end, period_type)
+
+
 # 检查数据源可用性
 try:
     # 显式导入，避免命名冲突
