@@ -37,13 +37,22 @@ logger = get_logger(__name__)
 
 # 检查数据源可用性
 try:
-    from .Ashare import *
-
+    # 显式导入，避免命名冲突
+    # 注意：Ashare模块可能导出多个函数，这里只导入常用的
+    from .Ashare import (
+        get_price,  # Ashare的主要数据获取函数
+        get_realtime_quotes_sina,
+        get_stock_name,
+    )
     has_ashare = True
     logger.info("✅ Ashare模块加载成功")
 except ImportError:
     has_ashare = False
     logger.warning("❌ Ashare模块未找到，将使用AKShare作为备用数据源")
+    # 定义占位函数，避免后续调用错误
+    get_price = None
+    get_realtime_quotes_sina = None
+    get_stock_name = None
 
 
 @st.cache_data(ttl=CACHE_TTL_ONLINE_DATA, show_spinner=False)

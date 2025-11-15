@@ -115,7 +115,8 @@ def setup_sidebar():
         from .data_loader import has_ashare
         from .cache_dashboard import integrate_cache_management
         from .performance_dashboard import show_performance_panel
-        from .optimized_data_loader import get_optimized_stock_data, preload_hot_stocks
+        # 已移除 optimized_data_loader，使用 data_loader 的统一接口
+        # from .optimized_data_loader import get_optimized_stock_data, preload_hot_stocks
         
         # 添加数据源选择
         st.markdown("#### 📊 数据源选择")
