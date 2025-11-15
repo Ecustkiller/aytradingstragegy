@@ -35,6 +35,149 @@ from .utils import format_stock_code
 
 logger = get_logger(__name__)
 
+
+# ========== 数据验证函数 ==========
+
+def validate_stock_code(symbol: str) -> tuple[bool, str]:
+    """
+    验证股票代码格式
+    
+    Args:
+        symbol: 股票代码
+        
+    Returns:
+        (is_valid, error_message): 验证结果和错误信息
+    """
+    if not symbol:
+        return False, "股票代码不能为空"
+    
+    # 移除空格和特殊字符
+    symbol = str(symbol).strip()
+    
+    # 提取纯数字部分
+    if '.' in symbol:
+        code_part = symbol.split('.')[0]
+    elif symbol.startswith(('sh', 'sz', 'bj', 'nq')):
+        code_part = symbol[2:]
+    else:
+        code_part = symbol
+    
+    # 检查是否为6位数字
+    if not code_part.isdigit():
+        return False, f"股票代码格式错误：'{symbol}' 应包含6位数字"
+    
+    if len(code_part) != 6:
+        return False, f"股票代码长度错误：'{symbol}' 应为6位数字"
+    
+    # 检查是否在有效范围内（A股、创业板、科创板等）
+    code_int = int(code_part)
+    valid_ranges = [
+        (600000, 605999),  # 上海A股
+        (0, 2999),  # 深圳A股 (000000-002999)
+        (300000, 301999),  # 创业板
+        (688000, 688999),  # 科创板
+        (430000, 439999),  # 新三板
+        (830000, 839999),  # 新三板
+    ]
+    
+    # 检查深圳A股（000000-002999）需要特殊处理
+    is_valid = any(start <= code_int <= end for start, end in valid_ranges)
+    # 深圳A股特殊检查：000000-002999
+    if not is_valid and 0 <= code_int <= 2999:
+        is_valid = True
+    
+    if not is_valid:
+        return False, f"股票代码 '{symbol}' 不在有效的A股代码范围内"
+    
+    return True, ""
+
+
+def validate_date_range(
+    start: Union[str, datetime.datetime, pd.Timestamp],
+    end: Union[str, datetime.datetime, pd.Timestamp]
+) -> tuple[bool, str]:
+    """
+    验证日期范围
+    
+    Args:
+        start: 开始日期
+        end: 结束日期
+        
+    Returns:
+        (is_valid, error_message): 验证结果和错误信息
+    """
+    try:
+        # 转换为datetime
+        if isinstance(start, str):
+            start = pd.to_datetime(start)
+        if isinstance(end, str):
+            end = pd.to_datetime(end)
+        
+        # 检查日期顺序
+        if end < start:
+            return False, f"结束日期（{end.strftime('%Y-%m-%d')}）不能早于开始日期（{start.strftime('%Y-%m-%d')}）"
+        
+        # 检查未来日期
+        now = datetime.datetime.now()
+        if end > now:
+            return False, f"结束日期（{end.strftime('%Y-%m-%d')}）不能是未来日期"
+        
+        # 检查日期范围（不能超过5年）
+        days_diff = (end - start).days
+        if days_diff > 365 * 5:
+            return False, f"日期范围不能超过5年（当前：{days_diff}天）"
+        
+        # 检查开始日期不能太早（A股数据通常从1990年开始）
+        if start < pd.to_datetime('1990-01-01'):
+            return False, f"开始日期（{start.strftime('%Y-%m-%d')}）不能早于1990年（A股市场起始时间）"
+        
+        return True, ""
+        
+    except Exception as e:
+        return False, f"日期格式错误：{str(e)}"
+
+
+def format_user_friendly_error(
+    error: Exception,
+    symbol: str,
+    data_source: str,
+    context: str = ""
+) -> str:
+    """
+    格式化用户友好的错误信息
+    
+    Args:
+        error: 异常对象
+        data_source: 数据源名称
+        context: 上下文信息
+        
+    Returns:
+        格式化的错误信息
+    """
+    error_type = type(error).__name__
+    error_msg = str(error)
+    
+    # 根据错误类型提供不同的提示
+    if "timeout" in error_msg.lower() or "timed out" in error_msg.lower():
+        return f"⏱️ 数据获取超时\n\n**原因：** 网络连接较慢或数据源响应超时\n**股票：** {symbol}\n**数据源：** {data_source}\n\n💡 **建议：**\n- 检查网络连接\n- 稍后重试\n- 尝试切换数据源"
+    
+    elif "connection" in error_msg.lower() or "网络" in error_msg:
+        return f"🌐 网络连接失败\n\n**原因：** 无法连接到数据源服务器\n**股票：** {symbol}\n**数据源：** {data_source}\n\n💡 **建议：**\n- 检查网络连接\n- 检查防火墙设置\n- 尝试切换数据源"
+    
+    elif "not found" in error_msg.lower() or "不存在" in error_msg or "404" in error_msg:
+        return f"❌ 股票代码不存在\n\n**原因：** 未找到股票 '{symbol}' 的数据\n**数据源：** {data_source}\n\n💡 **建议：**\n- 检查股票代码是否正确\n- 确认股票是否已退市\n- 尝试其他股票代码"
+    
+    elif "rate limit" in error_msg.lower() or "频率" in error_msg or "限制" in error_msg:
+        return f"⏸️ 请求过于频繁\n\n**原因：** 数据源API请求频率限制\n**数据源：** {data_source}\n\n💡 **建议：**\n- 等待30秒后重试\n- 尝试切换数据源\n- 减少请求频率"
+    
+    elif "permission" in error_msg.lower() or "权限" in error_msg or "401" in error_msg or "403" in error_msg:
+        return f"🔒 权限不足\n\n**原因：** 数据源访问权限受限\n**数据源：** {data_source}\n\n💡 **建议：**\n- 检查API密钥配置\n- 确认账户权限\n- 联系数据源提供商"
+    
+    else:
+        # 通用错误信息
+        return f"❌ 数据获取失败\n\n**错误类型：** {error_type}\n**错误信息：** {error_msg}\n**股票：** {symbol}\n**数据源：** {data_source}\n\n💡 **建议：**\n- 检查股票代码和日期范围\n- 尝试切换数据源\n- 稍后重试\n- 如问题持续，请联系技术支持"
+
+
 # 检查数据源可用性
 try:
     # 显式导入，避免命名冲突
@@ -162,7 +305,6 @@ def get_stock_data_ashare(
         return pd.DataFrame()
 
 
-@handle_data_error
 @st.cache_data(ttl=CACHE_TTL_ONLINE_DATA, show_spinner=False)
 def get_stock_data_ak(
     symbol: str,
@@ -345,7 +487,6 @@ def get_stock_data_tushare(
         return pd.DataFrame()
 
 
-@handle_data_error
 @st.cache_data(ttl=CACHE_TTL_LOCAL_DATA, show_spinner=False)
 def get_stock_data_csv(
     symbol: str,
@@ -461,11 +602,25 @@ def get_stock_data(
         >>> print(f"获取到 {len(df)} 条交易日数据")
     """
     try:
+        # ========== 数据验证 ==========
+        # 验证股票代码
+        is_valid_code, code_error = validate_stock_code(symbol)
+        if not is_valid_code:
+            st.error(f"❌ {code_error}")
+            st.info("💡 **提示：** 请输入6位数字的A股代码，如：600519（贵州茅台）、000001（平安银行）")
+            return pd.DataFrame()
+        
         # 确保日期格式正确
         if not isinstance(start, (str, pd.Timestamp, datetime.datetime)):
             start = pd.to_datetime(start, format="%Y%m%d")
         if not isinstance(end, (str, pd.Timestamp, datetime.datetime)):
             end = pd.to_datetime(end, format="%Y%m%d")
+        
+        # 验证日期范围
+        is_valid_date, date_error = validate_date_range(start, end)
+        if not is_valid_date:
+            st.error(f"❌ {date_error}")
+            return pd.DataFrame()
 
         # 根据用户选择的数据源获取数据
         if data_source == "Ashare" and has_ashare:
@@ -504,7 +659,18 @@ def get_stock_data(
         return df
 
     except Exception as e:
-        st.error(f"获取股票数据失败: {str(e)}")
+        # 格式化用户友好的错误信息
+        error_message = format_user_friendly_error(e, symbol, data_source)
+        st.error(error_message)
+        
+        # 记录详细错误日志
+        logger.error(
+            f"获取股票数据失败: symbol={symbol}, data_source={data_source}, "
+            f"start={start}, end={end}, period_type={period_type}, "
+            f"error={type(e).__name__}: {str(e)}",
+            exc_info=True
+        )
+        
         return pd.DataFrame()
 
 
