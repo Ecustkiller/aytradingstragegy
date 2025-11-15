@@ -94,6 +94,9 @@ def main():
     elif params["function_mode"] == "🌡️ 市场情绪分析":
         _safe_display_module("market_sentiment_analysis", "display_market_sentiment_analysis", "市场情绪分析功能出现错误")
         return
+    elif params["function_mode"] == "📈 大盘涨跌统计":
+        _safe_display_module("market_change_stats", "display_market_change_stats", "大盘涨跌统计功能出现错误")
+        return
     elif params["function_mode"] == "📊 ETF动量分析":
         # 显示ETF动量分析界面
         try:
